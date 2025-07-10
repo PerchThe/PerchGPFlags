@@ -12,7 +12,11 @@ import me.ryanhamshire.GriefPrevention.Claim;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.ChatColor;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
 
@@ -26,11 +30,8 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
     @Override
     public void onChangeClaim(Player player, Location lastLocation, Location to, Claim claimFrom, Claim claimTo, @Nullable Flag flagFrom, @Nullable Flag flagTo) {
         if (flagTo == null) return;
-        // moving to different claim with the same params
         if (flagFrom != null && flagFrom.parameters.equals(flagTo.parameters)) return;
-
         sendMessage(flagTo, player, claimTo);
-
     }
 
     public void sendMessage(Flag flag, Player player, Claim claim) {
@@ -42,7 +43,7 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
             }
         }
         message = message.replace("%name%", player.getName());
-        MessagingUtil.sendMessage(player, TextMode.Info + prefix + message);
+        MessagingUtil.sendMessage(player, colorize(TextMode.Info + prefix + message));
     }
 
     @Override
@@ -55,7 +56,6 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
         if (parameters.isEmpty()) {
             return new SetFlagResult(false, new MessageSpecifier(Messages.MessageRequired));
         }
-
         return new SetFlagResult(true, this.getSetMessage(parameters));
     }
 
@@ -69,4 +69,30 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
         return new MessageSpecifier(Messages.RemovedEnterMessage);
     }
 
+    private static final Pattern HEX_PATTERN = Pattern.compile("#([A-Fa-f0-9]{6})");
+    private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&([0-9a-fA-FlLoO])");
+
+    public static String colorize(String input) {
+        if (input == null) return null;
+        Matcher hexMatcher = HEX_PATTERN.matcher(input);
+        StringBuffer buffer = new StringBuffer();
+        while (hexMatcher.find()) {
+            String hex = hexMatcher.group(1);
+            StringBuilder legacy = new StringBuilder("§x");
+            for (char c : hex.toCharArray()) {
+                legacy.append('§').append(c);
+            }
+            hexMatcher.appendReplacement(buffer, legacy.toString());
+        }
+        hexMatcher.appendTail(buffer);
+        String processed = buffer.toString();
+        processed = COLOR_CODE_PATTERN.matcher(processed).replaceAll(match -> {
+            String code = match.group(1).toLowerCase();
+            if ("l".equals(code)) return ChatColor.BOLD.toString();
+            if ("o".equals(code)) return ChatColor.ITALIC.toString();
+            return ChatColor.getByChar(code).toString();
+        });
+        processed = processed.replaceAll("&[kKmMnNrR]", "");
+        return processed;
+    }
 }
