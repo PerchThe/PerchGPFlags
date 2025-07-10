@@ -12,11 +12,7 @@ import me.ryanhamshire.GriefPrevention.Claim;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.ChatColor;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
 
@@ -43,7 +39,8 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
             }
         }
         message = message.replace("%name%", player.getName());
-        MessagingUtil.sendMessage(player, colorize(TextMode.Info + prefix + message));
+        String converted = MessagingUtil.reserialize(TextMode.Info + prefix + message);
+        MessagingUtil.sendMessage(player, converted);
     }
 
     @Override
@@ -69,30 +66,37 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
         return new MessageSpecifier(Messages.RemovedEnterMessage);
     }
 
-    private static final Pattern HEX_PATTERN = Pattern.compile("#([A-Fa-f0-9]{6})");
-    private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&([0-9a-fA-FlLoO])");
+    public static String legacyToMiniMessage(String input) {
+        if (input == null) return "";
 
-    public static String colorize(String input) {
-        if (input == null) return null;
-        Matcher hexMatcher = HEX_PATTERN.matcher(input);
-        StringBuffer buffer = new StringBuffer();
-        while (hexMatcher.find()) {
-            String hex = hexMatcher.group(1);
-            StringBuilder legacy = new StringBuilder("§x");
-            for (char c : hex.toCharArray()) {
-                legacy.append('§').append(c);
-            }
-            hexMatcher.appendReplacement(buffer, legacy.toString());
-        }
-        hexMatcher.appendTail(buffer);
-        String processed = buffer.toString();
-        processed = COLOR_CODE_PATTERN.matcher(processed).replaceAll(match -> {
-            String code = match.group(1).toLowerCase();
-            if ("l".equals(code)) return ChatColor.BOLD.toString();
-            if ("o".equals(code)) return ChatColor.ITALIC.toString();
-            return ChatColor.getByChar(code).toString();
-        });
-        processed = processed.replaceAll("&[kKmMnNrR]", "");
-        return processed;
+        // Convert hex codes (&#RRGGBB or #RRGGBB) to MiniMessage
+        input = input.replaceAll("(?i)(?:&|§)?#([A-Fa-f0-9]{6})", "<#$1>");
+
+        // Remove all unsupported formatting codes
+        input = input.replaceAll("(?i)&[k-mnr]", "");
+
+        // Convert color codes
+        input = input.replaceAll("(?i)&0", "<black>");
+        input = input.replaceAll("(?i)&1", "<dark_blue>");
+        input = input.replaceAll("(?i)&2", "<dark_green>");
+        input = input.replaceAll("(?i)&3", "<dark_aqua>");
+        input = input.replaceAll("(?i)&4", "<dark_red>");
+        input = input.replaceAll("(?i)&5", "<dark_purple>");
+        input = input.replaceAll("(?i)&6", "<gold>");
+        input = input.replaceAll("(?i)&7", "<gray>");
+        input = input.replaceAll("(?i)&8", "<dark_gray>");
+        input = input.replaceAll("(?i)&9", "<blue>");
+        input = input.replaceAll("(?i)&a", "<green>");
+        input = input.replaceAll("(?i)&b", "<aqua>");
+        input = input.replaceAll("(?i)&c", "<red>");
+        input = input.replaceAll("(?i)&d", "<light_purple>");
+        input = input.replaceAll("(?i)&e", "<yellow>");
+        input = input.replaceAll("(?i)&f", "<white>");
+
+        // Convert &l and &o to MiniMessage tags
+        input = input.replaceAll("(?i)&l", "<bold>");
+        input = input.replaceAll("(?i)&o", "<italic>");
+
+        return input;
     }
 }

@@ -26,7 +26,7 @@ package me.ryanhamshire.GPFlags;
 //just a few constants for chat color codes
 public class TextMode {
 
-    public final static String Info = "<aqua>";
+    public final static String Info = "";
     public final static String Instr = "<yellow>";
     public final static String Warn = "<gold>";
     public final static String Err = "<red>";
