@@ -9,9 +9,7 @@ import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockGrowEvent;
-
-import java.util.Arrays;
-import java.util.List;
+import org.bukkit.event.block.BlockSpreadEvent;
 
 public class FlagDef_NoGrowth extends FlagDefinition {
 
@@ -21,6 +19,16 @@ public class FlagDef_NoGrowth extends FlagDefinition {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onGrowth(BlockGrowEvent event) {
+        Block block = event.getBlock();
+
+        Flag flag = this.getFlagInstanceAtLocation(block.getLocation(), null);
+        if (flag == null) return;
+
+        event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onSpread(BlockSpreadEvent event) {
         Block block = event.getBlock();
 
         Flag flag = this.getFlagInstanceAtLocation(block.getLocation(), null);
@@ -43,5 +51,4 @@ public class FlagDef_NoGrowth extends FlagDefinition {
     public MessageSpecifier getUnSetMessage() {
         return new MessageSpecifier(Messages.DisableNoGrowth);
     }
-
 }
