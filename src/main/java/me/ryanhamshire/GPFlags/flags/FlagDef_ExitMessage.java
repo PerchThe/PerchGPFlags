@@ -28,15 +28,20 @@ public class FlagDef_ExitMessage extends PlayerMovementFlagDefinition {
         if (flagFrom == null) return;
         // moving to different claim with the same message
         if (flagTo != null && flagTo.parameters.equals(flagFrom.parameters)) return;
-        String message = flagFrom.parameters;
-        if (claimFrom != null) {
-            String ownerName = claimFrom.getOwnerName();
+        sendMessage(flagFrom, player, claimFrom);
+    }
+
+    public void sendMessage(Flag flag, Player player, Claim claim) {
+        String message = flag.parameters;
+        if (claim != null) {
+            String ownerName = claim.getOwnerName();
             if (ownerName != null) {
                 message = message.replace("%owner%", ownerName);
             }
         }
         message = message.replace("%name%", player.getName());
-        MessagingUtil.sendMessage(player, TextMode.Info + prefix + message);
+        String converted = MessagingUtil.reserialize(TextMode.Info + prefix + message);
+        MessagingUtil.sendMessage(player, converted);
     }
 
     @Override
