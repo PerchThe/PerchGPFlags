@@ -5,12 +5,10 @@ import me.ryanhamshire.GPFlags.FlagManager;
 import me.ryanhamshire.GPFlags.GPFlags;
 import me.ryanhamshire.GPFlags.MessageSpecifier;
 import me.ryanhamshire.GPFlags.Messages;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageEvent;
-
-import java.util.Arrays;
-import java.util.List;
+import org.bukkit.event.hanging.HangingBreakEvent;
 
 public class FlagDef_NoExplosionDamage extends FlagDefinition {
 
@@ -18,17 +16,28 @@ public class FlagDef_NoExplosionDamage extends FlagDefinition {
         super(manager, plugin);
     }
 
-    @EventHandler
-    public void onFall(EntityDamageEvent e) {
-        if (!(e.getEntity() instanceof Player)) return;
-        if (e.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION ||
-                e.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
-
-            Flag flag = this.getFlagInstanceAtLocation(e.getEntity().getLocation(), null);
-            if (flag == null) return;
-
-            e.setCancelled(true);
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEntityExplosionDamage(EntityDamageEvent e) {
+        EntityDamageEvent.DamageCause cause = e.getCause();
+        if (cause != EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
+                && cause != EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+            return;
         }
+
+        Flag flag = this.getFlagInstanceAtLocation(e.getEntity().getLocation(), null);
+        if (flag == null) return;
+
+        e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onHangingBreakByExplosion(HangingBreakEvent e) {
+        if (e.getCause() != HangingBreakEvent.RemoveCause.EXPLOSION) return;
+
+        Flag flag = this.getFlagInstanceAtLocation(e.getEntity().getLocation(), null);
+        if (flag == null) return;
+
+        e.setCancelled(true);
     }
 
     @Override
@@ -45,5 +54,4 @@ public class FlagDef_NoExplosionDamage extends FlagDefinition {
     public MessageSpecifier getUnSetMessage() {
         return new MessageSpecifier(Messages.DisabledNoExplosionDamage);
     }
-
 }
