@@ -8,6 +8,7 @@ import me.ryanhamshire.GPFlags.util.Util;
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import me.ryanhamshire.GriefPrevention.PlayerData;
+import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -15,29 +16,27 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 public class CommandSetClaimFlag implements TabExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] args) {
-        // Check perms
         if (!commandSender.hasPermission("gpflags.command.setclaimflag")) {
             MessagingUtil.sendMessage(commandSender, TextMode.Err, Messages.NoCommandPermission, command.toString());
             return true;
         }
-        // Check player sender
         if (!(commandSender instanceof Player)) {
             MessagingUtil.sendMessage(commandSender, TextMode.Warn, Messages.PlayerOnlyCommand, command.toString());
             return true;
         }
-        Player player = ((Player) commandSender);
+        Player player = (Player) commandSender;
 
-        // Check that they provided a flag
         if (args.length < 1) return false;
         String flagName = args[0];
 
-        // If they provided a nonexisting flag, show them the options
         GPFlags gpflags = GPFlags.getInstance();
         FlagDefinition def = gpflags.getFlagManager().getFlagDefinitionByName(flagName);
         if (def == null) {
@@ -45,27 +44,26 @@ public class CommandSetClaimFlag implements TabExecutor {
             return true;
         }
 
-        // Check perms for that specific flag
         if (!player.hasPermission("gpflags.flag." + flagName)) {
             MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoFlagPermission, flagName);
             return true;
         }
 
-        // Check that the flag can be used in claims
         if (!def.getFlagType().contains(FlagDefinition.FlagType.CLAIM)) {
             MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoFlagInClaim);
             return true;
         }
 
-        // Check that they are standing in a claim
         PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
-        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(player.getLocation(), false, playerData.lastClaim);
+        Location loc = player.getLocation();
+
+        // IMPORTANT: resolve the *innermost* subclaim at the player's location (3D-aware)
+        Claim claim = getInnermostClaimAt(loc, playerData.lastClaim);
         if (claim == null) {
             MessagingUtil.sendMessage(commandSender, TextMode.Err, Messages.StandInAClaim);
             return true;
         }
 
-        // Check that they can set flags in the area
         if (!Util.canEdit(player, claim)) {
             MessagingUtil.sendMessage(player, TextMode.Err, Messages.NotYourClaim);
             return true;
@@ -74,9 +72,7 @@ public class CommandSetClaimFlag implements TabExecutor {
         String[] params = new String[args.length - 1];
         System.arraycopy(args, 1, params, 0, args.length - 1);
 
-        // Prevent combining OwnerMemberFly with OwnerFly
-        Collection<Flag> flags;
-        flags = gpflags.getFlagManager().getFlags(claim.getID().toString());
+        Collection<Flag> flags = gpflags.getFlagManager().getFlags(claim.getID().toString());
         for (Flag flag : flags) {
             if (flagName.equalsIgnoreCase("OwnerFly")) {
                 if (flag.getFlagDefinition().getName().equalsIgnoreCase("OwnerMemberFly")) {
@@ -92,7 +88,6 @@ public class CommandSetClaimFlag implements TabExecutor {
             }
         }
 
-        // Check to see if biome is allowed for the player
         if (flagName.equalsIgnoreCase("ChangeBiome")) {
             if (args.length < 2) return false;
             FlagDef_ChangeBiome flagD = ((FlagDef_ChangeBiome) gpflags.getFlagManager().getFlagDefinitionByName("changebiome"));
@@ -100,7 +95,6 @@ public class CommandSetClaimFlag implements TabExecutor {
             if (!flagD.changeBiome(commandSender, claim, biome)) return true;
         }
 
-        // Check permissions for mob type
         if (flagName.equalsIgnoreCase("NoMobSpawnsType")) {
             if (params.length == 0) return false;
             for (String type : params[0].split(";")) {
@@ -111,20 +105,51 @@ public class CommandSetClaimFlag implements TabExecutor {
             }
         }
 
-        // If they are trying to use subdivisions with an old GP version, deny it.
         Long claimID = claim.getID();
         if (claimID == null || claimID == -1) {
             MessagingUtil.sendMessage(player, TextMode.Err, Messages.UpdateGPForSubdivisionFlags);
             return true;
         }
 
-        // Change the flag in the file storage
         SetFlagResult result = gpflags.getFlagManager().setFlag(claimID.toString(), def, true, commandSender, params);
         String color = result.isSuccess() ? TextMode.Success : TextMode.Err;
         MessagingUtil.sendMessage(player, color, result.getMessage().getMessageID(), result.getMessage().getMessageParams());
         if (result.isSuccess()) gpflags.getFlagManager().save();
 
         return true;
+    }
+
+    /**
+     * Resolve the deepest subclaim that contains the given location.
+     * Uses 4-arg getClaimAt(loc, ignoreHeight, excludeSubdivisions, cache) when available,
+     * otherwise falls back to 3-arg and then walks children.
+     */
+    private Claim getInnermostClaimAt(@NotNull Location loc, @Nullable Claim cache) {
+        Claim base;
+        try {
+            // Prefer signature that explicitly INCLUDES subdivisions and respects 3D height
+            base = GriefPrevention.instance.dataStore.getClaimAt(loc, false, false, cache);
+        } catch (Throwable t) {
+            // Fallback signature
+            base = GriefPrevention.instance.dataStore.getClaimAt(loc, false, cache);
+        }
+        if (base == null) return null;
+
+        Claim current = base;
+        while (true) {
+            Claim childHit = null;
+            if (current.children != null && !current.children.isEmpty()) {
+                for (Claim child : current.children) {
+                    if (child != null && child.inDataStore && child.contains(loc, false, false)) {
+                        childHit = child;
+                        break;
+                    }
+                }
+            }
+            if (childHit == null) break;
+            current = childHit;
+        }
+        return current;
     }
 
     @Override
