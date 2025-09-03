@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import me.ryanhamshire.GriefPrevention.events.ClaimPermissionCheckEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -14,6 +15,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 import me.ryanhamshire.GPFlags.Flag;
 import me.ryanhamshire.GPFlags.FlagManager;
 import me.ryanhamshire.GPFlags.GPFlags;
@@ -23,10 +25,9 @@ import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.ClaimPermission;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import me.ryanhamshire.GriefPrevention.PlayerData;
-import org.bukkit.inventory.meta.BookMeta;
 
 public class FlagDef_ReadLecterns extends FlagDefinition {
-    
+
     public FlagDef_ReadLecterns(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
     }
@@ -37,47 +38,50 @@ public class FlagDef_ReadLecterns extends FlagDefinition {
         if (!(triggeringEvent instanceof PlayerInteractEvent)) return;
         PlayerInteractEvent interactEvent = (PlayerInteractEvent) triggeringEvent;
         if (interactEvent.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-
         Block block = interactEvent.getClickedBlock();
         if (block == null) return;
         BlockState state = block.getState();
         if (!(state instanceof Lectern)) return;
-
         Flag flag = this.getFlagInstanceAtLocation(block.getLocation(), null);
         if (flag == null) return;
-
         Player player = interactEvent.getPlayer();
         PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
         Claim claim = GriefPrevention.instance.dataStore.getClaimAt(block.getLocation(), false, playerData.lastClaim);
         if (claim == null) return;
         if (player.getUniqueId().equals(claim.getOwnerID())) return;
-        // Dont pass in the event so we dont infinite loop
         if (claim.checkPermission(player, ClaimPermission.Inventory, null) == null) return;
-
         Lectern lectern = (Lectern) state;
         ItemStack book = lectern.getInventory().getItem(0);
-        if (book == null) return;
-
+        if (book == null || book.getType() == Material.AIR) return;
         event.setDenialReason(() -> GPFlags.getInstance().getFlagsDataStore().getMessage(Messages.LecternOpened));
-
-        // If it's a book and quill, pretend it's signed
+        interactEvent.setCancelled(true);
+        try {
+            interactEvent.setUseInteractedBlock(Event.Result.DENY);
+            interactEvent.setUseItemInHand(Event.Result.DENY);
+        } catch (NoSuchMethodError ignored) {}
+        ItemStack toOpen;
         if (book.getType() == Material.WRITABLE_BOOK) {
-            ItemStack writtenBook = new ItemStack(Material.WRITTEN_BOOK);
-            BookMeta fauxMeta = (BookMeta) writtenBook.getItemMeta();
+            ItemStack written = new ItemStack(Material.WRITTEN_BOOK);
+            BookMeta fauxMeta = (BookMeta) written.getItemMeta();
+            BookMeta srcMeta = (BookMeta) book.getItemMeta();
             fauxMeta.setAuthor("GPFlags");
             fauxMeta.setTitle("Book and Quill");
-            BookMeta meta = (BookMeta) book.getItemMeta();
             try {
-                fauxMeta.pages(meta.pages());
-            } catch (Throwable e) {
-                fauxMeta.setPages(meta.getPages());
+                fauxMeta.pages(srcMeta.pages());
+            } catch (Throwable t) {
+                fauxMeta.setPages(srcMeta.getPages());
             }
-            writtenBook.setItemMeta(fauxMeta);
-            player.openBook(writtenBook);
-            return;
+            written.setItemMeta(fauxMeta);
+            toOpen = written;
+        } else {
+            toOpen = book.clone();
         }
-
-        player.openBook(book);
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
+            ItemStack originalOffhand = player.getInventory().getItemInOffHand();
+            player.getInventory().setItemInOffHand(toOpen);
+            player.openBook(toOpen);
+            Bukkit.getScheduler().runTask(this.plugin, () -> player.getInventory().setItemInOffHand(originalOffhand));
+        });
     }
 
     @Override

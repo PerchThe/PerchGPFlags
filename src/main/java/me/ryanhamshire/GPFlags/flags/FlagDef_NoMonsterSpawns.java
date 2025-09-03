@@ -29,7 +29,7 @@ public class FlagDef_NoMonsterSpawns extends FlagDefinition {
         // === BYPASS: Allow highlight shulkers from PerchFindItem ===
         if (entity.getType() == org.bukkit.entity.EntityType.SHULKER
                 && entity.getCustomName() != null
-                && entity.getCustomName().equals("PerchFindItemHighlight")) {
+                && entity.getCustomName().equals("PerchShopFinderHighlight")) {
             return; // Allow this shulker to spawn!
         }
         // === END BYPASS ===
