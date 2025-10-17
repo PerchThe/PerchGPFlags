@@ -155,6 +155,7 @@ public class GPFlagsConfig {
             this.flagManager.registerFlagDefinition(new FlagDef_NoExpiration(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoLeafDecay(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoPetDamage(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_NoSittingAnimals(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoWeatherChange(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoItemPickup(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoChorusFruit(this.flagManager, plugin));

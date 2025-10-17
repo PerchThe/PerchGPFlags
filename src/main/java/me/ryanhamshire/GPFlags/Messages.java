@@ -278,6 +278,11 @@ public enum Messages {
     EnabledAllowVillagerTrading,
     DisabledAllowVillagerTrading,
 
+    EnabledNoSittingAnimals,
+    DisabledNoSittingAnimals,
+    NoSittingAnimals,
+
+
     EnabledRestoreGrazedGrass,
     DisabledRestoreGrazedGrass,
 

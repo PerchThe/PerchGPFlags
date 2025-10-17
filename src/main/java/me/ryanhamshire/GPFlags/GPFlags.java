@@ -18,6 +18,7 @@ import org.bstats.bukkit.Metrics;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import me.ryanhamshire.GPFlags.flags.NoMobSpawnsGate;
 
 import me.ryanhamshire.GPFlags.flags.FlagDef_ViewContainers;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -56,6 +57,8 @@ public class GPFlags extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ClaimCreatedListener(), this);
         Bukkit.getPluginManager().registerEvents(new ClaimTransferListener(), this);
         Bukkit.getPluginManager().registerEvents(new FlightManager(), this);
+        Bukkit.getPluginManager().registerEvents(new NoMobSpawnsGate(this), this);
+
 
         this.flagsDataStore = new FlagsDataStore();
         reloadConfig();

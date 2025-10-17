@@ -59,5 +59,4 @@ public class FlagDef_NoMonsterSpawns extends FlagDefinition {
     public MessageSpecifier getUnSetMessage() {
         return new MessageSpecifier(Messages.EnableMonsterSpawns);
     }
-
 }
