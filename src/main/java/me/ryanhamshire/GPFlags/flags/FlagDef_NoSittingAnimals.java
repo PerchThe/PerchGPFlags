@@ -11,9 +11,11 @@ import me.ryanhamshire.GPFlags.util.MessagingUtil;
 import me.ryanhamshire.GPFlags.util.Util;
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
+import org.bukkit.Material;
+import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Tameable;
 import org.bukkit.entity.Sittable;
+import org.bukkit.entity.Tameable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -21,6 +23,7 @@ import org.bukkit.inventory.EquipmentSlot;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 public class FlagDef_NoSittingAnimals extends FlagDefinition {
 
@@ -58,17 +61,48 @@ public class FlagDef_NoSittingAnimals extends FlagDefinition {
         if (!tameable.isTamed()) return;
 
         Player player = event.getPlayer();
+
+        // Only act if the flag is present at this location
         Flag flag = this.getFlagInstanceAtLocation(event.getRightClicked().getLocation(), player);
         if (flag == null) return;
 
         Claim claim = GriefPrevention.instance.dataStore.getClaimAt(event.getRightClicked().getLocation(), false, null);
         if (Util.shouldBypass(player, claim, flag)) return;
 
+        // Pet owner check
+        AnimalTamer tamer = tameable.getOwner();
+        UUID petOwnerId = (tamer != null) ? tamer.getUniqueId() : null;
+        boolean isOwnerOfPet = petOwnerId != null && petOwnerId.equals(player.getUniqueId());
+
+        // Trust / ownership in claim
+        boolean hasClaimTrust = false;
+        if (claim == null) {
+            // Wilderness: allow only the pet owner to control their own pet
+            hasClaimTrust = isOwnerOfPet;
+        } else {
+            // Owner of claim?
+            if (player.getUniqueId().equals(claim.getOwnerID())) {
+                hasClaimTrust = true;
+            } else {
+                // Any trust level qualifies
+                if (claim.allowAccess(player) == null
+                        || claim.allowContainers(player) == null
+                        || claim.allowBuild(player, Material.AIR) == null
+                        || claim.allowGrantPermission(player) == null) {
+                    hasClaimTrust = true;
+                }
+            }
+        }
+
+        // Allow only if the player is the pet owner AND trusted/owner in the claim (or wilderness-owner case above)
+        if (isOwnerOfPet && hasClaimTrust) return;
+
+        // Otherwise block & message
         event.setCancelled(true);
-        String owner = claim != null ? claim.getOwnerName() : "Unknown";
-        String msg = new FlagsDataStore().getMessage(Messages.NoSittingAnimals);
-        msg = msg.replace("{p}", player.getName()).replace("{o}", owner);
-        msg = msg.replace("{0}", player.getName()).replace("{1}", owner);
+        String ownerName = (claim != null) ? claim.getOwnerName() : "Unknown";
+        String msg = this.plugin.getFlagsDataStore().getMessage(Messages.NoSittingAnimals);
+        msg = msg.replace("{p}", player.getName()).replace("{o}", ownerName);
+        msg = msg.replace("{0}", player.getName()).replace("{1}", ownerName);
         MessagingUtil.sendMessage(player, TextMode.Warn + msg);
     }
 }

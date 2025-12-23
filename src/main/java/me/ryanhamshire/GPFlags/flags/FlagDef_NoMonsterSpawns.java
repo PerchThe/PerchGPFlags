@@ -7,6 +7,8 @@ import me.ryanhamshire.GPFlags.MessageSpecifier;
 import me.ryanhamshire.GPFlags.Messages;
 import me.ryanhamshire.GPFlags.WorldSettings;
 import me.ryanhamshire.GPFlags.util.Util;
+import org.bukkit.entity.Animals;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -25,18 +27,24 @@ public class FlagDef_NoMonsterSpawns extends FlagDefinition {
         if (flag == null) return;
 
         LivingEntity entity = event.getEntity();
+        EntityType type = entity.getType();
 
-        // === BYPASS: Allow highlight shulkers from PerchFindItem ===
-        if (entity.getType() == org.bukkit.entity.EntityType.SHULKER
+        if (type == EntityType.SHULKER
                 && entity.getCustomName() != null
                 && entity.getCustomName().equals("PerchShopFinderHighlight")) {
-            return; // Allow this shulker to spawn!
+            return;
         }
-        // === END BYPASS ===
-
-        if (!Util.isMonster(entity)) return;
 
         SpawnReason reason = event.getSpawnReason();
+        if (reason == SpawnReason.BREEDING) return;
+        if (reason == SpawnReason.BUCKET) return;
+
+        boolean isBat = type == EntityType.BAT;
+        boolean isMonster = Util.isMonster(entity);
+        boolean isAnimal = entity instanceof Animals;
+
+        if (!isBat && !(isMonster || isAnimal)) return;
+
         if (reason == SpawnReason.SLIME_SPLIT) return;
 
         WorldSettings settings = this.settingsManager.get(event.getEntity().getWorld());

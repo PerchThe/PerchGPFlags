@@ -476,6 +476,8 @@ permissions:
     default: true
     children:
       gpflags.command.gpflags: true
+  gpflags.bypass.requireemptyenter:
+    default: false
   gpflags.flag.allflags:
     description: Grants permission to apply/remove all flags. (depreciated)
     default: op

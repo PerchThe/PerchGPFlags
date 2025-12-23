@@ -331,6 +331,13 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.EnableNoBlockSpread, "Blocks will no longer spread based on world conditions.", null);
         this.addDefault(defaults, Messages.DisableNoBlockSpread, "Blocks will once again spread based on world conditions.", null);
 
+        this.addDefault(defaults, Messages.RequireEmptyInvOnEnterEnabled, "RequireEmptyInvOnEnter flag enabled for this claim.", null);
+        this.addDefault(defaults, Messages.RequireEmptyInvOnEnterDisabled, "RequireEmptyInvOnEnter flag disabled for this claim.", null);
+        this.addDefault(defaults, Messages.RequireEmptyInvOnEnterDenied, "You must empty your inventory before entering this claim!", null);
+
+        this.addDefault(defaults, Messages.SnowballsAlwaysDropEnabled, "Snowballs will now always drop in this claim.", null);
+        this.addDefault(defaults, Messages.SnowballsAlwaysDropDisabled, "Snowballs will no longer always drop in this claim.", null);
+
         this.addDefault(defaults, Messages.EnableNoDripstoneSpread, "Dripstone will no longer spread based on world conditions.", null);
         this.addDefault(defaults, Messages.DisableNoDripstoneSpread, "Dripstone will once again spread based on world conditions.", null);
 
@@ -395,6 +402,25 @@ public class FlagsDataStore {
 
         this.addDefault(defaults, Messages.EnabledRestoreGrazedGrass, "Grass will now immediiately regrow after being grazed by sheep.", null);
         this.addDefault(defaults, Messages.DisabledRestoreGrazedGrass, "Grass will no longer immediately regrow after being grazed by sheep.", null);
+
+        this.addDefault(defaults, Messages.EnabledNoTakingFromItemFrames, "Taking items from item frames is now disabled in this area.", null);
+        this.addDefault(defaults, Messages.DisabledNoTakingFromItemFrames, "Taking items from item frames is now allowed in this area.", null);
+        this.addDefault(defaults, Messages.NoTakingFromItemFrames, "You may not take items from item frames here.", null);
+
+        this.addDefault(defaults, Messages.EnabledNoDamagePlayerSameClaim, "Friendly fire is now disabled in this claim.", null);
+        this.addDefault(defaults, Messages.DisabledNoDamagePlayerSameClaim, "Friendly fire is now enabled in this claim.", null);
+        this.addDefault(defaults, Messages.NoDamagePlayerSameClaim, "You cannot damage other players in the same claim.", null);
+        this.addDefault(defaults, Messages.EnabledSnowballInstaKills, "Snowballs now instantly kill in this claim.", null);
+        this.addDefault(defaults, Messages.DisabledSnowballInstaKills, "Snowballs no longer instantly kill in this claim.", null);
+        this.addDefault(defaults, Messages.EnabledPublicContainerStackLimit, "Players can now take limited stacks from containers in this claim.", null);
+        this.addDefault(defaults, Messages.DisabledPublicContainerStackLimit, "Players can no longer take stacks from containers in this claim.", null);
+        this.addDefault(defaults, Messages.EnabledNoBreakCertainBlock, "This claim now protects certain blocks from being broken.", null);
+        this.addDefault(defaults, Messages.DisabledNoBreakCertainBlock, "This claim no longer protects certain blocks from being broken.", null);
+        this.addDefault(defaults, Messages.NoBreakCertainBlockMessage, "You cannot break {block} in this claim!", null);
+        this.addDefault(defaults, Messages.EnabledNoPlaceCertainBlock, "This claim now protects certain blocks from being placed.", null);
+        this.addDefault(defaults, Messages.DisabledNoPlaceCertainBlock, "This claim no longer protects certain blocks from being placed.", null);
+        this.addDefault(defaults, Messages.NoPlaceCertainBlockMessage, "You cannot place {block} in this claim!", null);
+
 
         //load the config file
         File file = new File(messagesFilePath);

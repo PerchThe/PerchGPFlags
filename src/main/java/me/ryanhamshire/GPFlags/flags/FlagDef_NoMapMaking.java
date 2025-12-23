@@ -22,23 +22,30 @@ public class FlagDef_NoMapMaking extends FlagDefinition {
 
     @EventHandler
     public void onMapMake(PlayerInteractEvent event) {
-        // Check if the flag exists
         Player player = event.getPlayer();
         Flag flag = this.getFlagInstanceAtLocation(player.getLocation(), player);
         if (flag == null) return;
 
-        // Check if they are trying to make a map
         if (event.getAction() == Action.LEFT_CLICK_AIR) return;
         if (event.getAction() == Action.LEFT_CLICK_BLOCK) return;
         if (event.getMaterial() != Material.MAP) return;
 
-        // Check if they should bypass
         Claim claim = GriefPrevention.instance.dataStore.getClaimAt(player.getLocation(), false, null);
         if (Util.shouldBypass(player, claim, flag)) return;
+        if (claim != null) {
+            try {
+                boolean isTrusted =
+                        claim.allowBuild(player, event.getMaterial()) == null || // full build trust
+                                claim.allowContainers(player) == null ||                 // container trust
+                                claim.allowAccess(player) == null;                       // access trust
+
+                if (isTrusted) return;
+            } catch (NoSuchMethodError | AbstractMethodError ignored) {
+            }
+        }
 
         MessagingUtil.sendMessage(player, TextMode.Err, Messages.MapMakingDisabled);
         event.setCancelled(true);
-
     }
 
     @Override

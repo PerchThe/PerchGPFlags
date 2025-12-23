@@ -7,7 +7,6 @@ import me.ryanhamshire.GPFlags.commands.CommandBuyContainerTrust;
 import me.ryanhamshire.GPFlags.commands.CommandBuySubclaim;
 import me.ryanhamshire.GPFlags.flags.*;
 import me.ryanhamshire.GPFlags.util.MessagingUtil;
-import me.ryanhamshire.GPFlags.util.Util;
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import org.bukkit.Bukkit;
@@ -134,6 +133,7 @@ public class GPFlagsConfig {
             this.flagManager.registerFlagDefinition(new FlagDef_NoPlayerDamage(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoPlayerDamageByMonster(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoEnter(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_RequireEmptyInvOnEnter(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoMobDamage(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoFluidFlow(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_HealthRegen(this.flagManager, plugin));
@@ -197,13 +197,19 @@ public class GPFlagsConfig {
             this.flagManager.registerFlagDefinition(new FlagDef_NoPotionEffects(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_SpawnReasonWhitelist(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoCropTrampling(this.flagManager, plugin));
-
+            this.flagManager.registerFlagDefinition(new FlagDef_SnowballsAlwaysDrop(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_NoTakingFromItemFrames(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_NoDamagePlayerSameClaim(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_ViewContainers(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_ReadLecterns(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_AllowWitherDamage(this.flagManager, plugin));
-
             this.flagManager.registerFlagDefinition(new FlagDef_AllowVillagerTrading(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_RestoreGrazedGrass(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_SnowballInstaKills(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_PublicContainerStackLimit(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_NoBreakCertainBlock(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_NoPlaceCertainBlock(this.flagManager, plugin));
+
 
             try {
                 Class.forName("org.bukkit.event.raid.RaidTriggerEvent");
