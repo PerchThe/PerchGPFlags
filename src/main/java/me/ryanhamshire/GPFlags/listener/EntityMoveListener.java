@@ -13,11 +13,21 @@ public class EntityMoveListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     private void onMove(EntityMoveEvent event) {
-        // Check if it'll be allowed
+        Location from = event.getFrom();
+        Location to = event.getTo();
+
+        if (from.getX() == to.getX() && from.getY() == to.getY() && from.getZ() == to.getZ()) {
+            return;
+        }
+
+        if (from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ()) {
+            return;
+        }
+
         Set<Player> group = Util.getMovementGroup(event.getEntity());
-        Location locTo = event.getTo();
-        Location locFrom = event.getFrom();
-        if (PlayerListener.flagsPreventMovement(locTo, locFrom, group)) {
+        if (PlayerListener.flagsPreventMovement(to, from, group)) {
             event.setCancelled(true);
         }
     }

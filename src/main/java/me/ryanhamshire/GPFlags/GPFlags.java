@@ -14,7 +14,6 @@ import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bstats.charts.DrilldownPie;
 import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
-import org.bstats.bukkit.Metrics;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,9 +22,7 @@ import me.ryanhamshire.GPFlags.flags.NoMobSpawnsGate;
 import me.ryanhamshire.GPFlags.flags.FlagDef_ViewContainers;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-/**
- * <b>Main GriefPrevention Flags class</b>
- */
+
 public class GPFlags extends JavaPlugin {
 
     private static GPFlags instance;
@@ -80,16 +77,8 @@ public class GPFlags extends JavaPlugin {
         getCommand("bulksetflag").setExecutor(new CommandBulkSetFlag());
         getCommand("bulkunsetflag").setExecutor(new CommandBulkUnsetFlag());
 
-        UpdateChecker.run(this, "gpflags");
-
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PlaceholderApiHook(this).register();
-        }
-
-        try {
-            addCustomMetrics();
-        } catch (Throwable e) {
-            getLogger().log(Level.WARNING, "Error enabling metrics", e);
         }
 
         float finish = (float) (System.currentTimeMillis() - start) / 1000;
@@ -117,74 +106,22 @@ public class GPFlags extends JavaPlugin {
         return this.adventure;
     }
 
-    /**
-     * Reload the config file
-     */
     public void reloadConfig() {
         this.worldSettingsManager = new WorldSettingsManager();
         new GPFlagsConfig(this);
     }
 
-    /**
-     * Get an instance of this plugin
-     *
-     * @return Instance of this plugin
-     */
     public static GPFlags getInstance() {
         return instance;
     }
-
-    /**
-     * Get an instance of the flags data store
-     *
-     * @return Instance of the flags data store
-     */
     public FlagsDataStore getFlagsDataStore() {
         return this.flagsDataStore;
     }
-
-    /**
-     * Get an instance of the flag manager
-     *
-     * @return Instance of the flag manager
-     */
     public FlagManager getFlagManager() {
         return this.flagManager;
     }
-
-    /**
-     * Get an instance of the world settings manager
-     *
-     * @return Instance of the world settings manager
-     */
     public WorldSettingsManager getWorldSettingsManager() {
         return this.worldSettingsManager;
-    }
-
-    private void addCustomMetrics() {
-        Metrics bStats = new Metrics(this, 17786);
-
-        Set<String> usedFlags = GPFlags.getInstance().getFlagManager().getUsedFlags();
-        Collection<FlagDefinition> defs = GPFlags.getInstance().getFlagManager().getFlagDefinitions();
-        for (FlagDefinition def : defs) {
-            bStats.addCustomChart(new SimplePie("using_" + def.getName().toLowerCase(), () -> {
-                return String.valueOf(usedFlags.contains(def.getName().toLowerCase()));
-            }));
-        }
-        bStats.addCustomChart(new SimplePie("griefprevention_version", () -> {
-            return GriefPrevention.instance.getDescription().getVersion();
-        }));
-
-        String serverVersion = getServer().getBukkitVersion().split("-")[0];
-
-        bStats.addCustomChart(createStaticDrilldownStat("version_mc_plugin", serverVersion, getDescription().getVersion()));
-        bStats.addCustomChart(createStaticDrilldownStat("version_plugin_mc", getDescription().getVersion(), serverVersion));
-
-        bStats.addCustomChart(createStaticDrilldownStat("version_brand_plugin", getServer().getName(), getDescription().getVersion()));
-        bStats.addCustomChart(createStaticDrilldownStat("version_plugin_brand", getDescription().getVersion(), getServer().getName()));
-
-        bStats.addCustomChart(createStaticDrilldownStat("version_mc_brand", serverVersion, getServer().getName()));
-        bStats.addCustomChart(createStaticDrilldownStat("version_brand_mc", getServer().getName(), serverVersion));
     }
 
     private static DrilldownPie createStaticDrilldownStat(String statId, String value1, String value2) {

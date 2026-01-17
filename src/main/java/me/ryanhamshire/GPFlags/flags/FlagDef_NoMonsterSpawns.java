@@ -7,6 +7,8 @@ import me.ryanhamshire.GPFlags.MessageSpecifier;
 import me.ryanhamshire.GPFlags.Messages;
 import me.ryanhamshire.GPFlags.WorldSettings;
 import me.ryanhamshire.GPFlags.util.Util;
+import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -17,15 +19,17 @@ import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 
 public class FlagDef_NoMonsterSpawns extends FlagDefinition {
 
+    // --- LOCAL CACHE ---
+    // Safe because it's only used by this specific flag checker
+    private Claim cachedClaim = null;
+    // -------------------
+
     public FlagDef_NoMonsterSpawns(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onEntitySpawn(CreatureSpawnEvent event) {
-        Flag flag = this.getFlagInstanceAtLocation(event.getLocation(), null);
-        if (flag == null) return;
-
         LivingEntity entity = event.getEntity();
         EntityType type = entity.getType();
 
@@ -36,21 +40,37 @@ public class FlagDef_NoMonsterSpawns extends FlagDefinition {
         }
 
         SpawnReason reason = event.getSpawnReason();
+
         if (reason == SpawnReason.BREEDING) return;
         if (reason == SpawnReason.BUCKET) return;
+        if (reason == SpawnReason.EGG) return;
+
+        try {
+            if (reason == SpawnReason.valueOf("BEEHIVE")) return;
+        } catch (IllegalArgumentException ignored) {
+        }
 
         boolean isBat = type == EntityType.BAT;
         boolean isMonster = Util.isMonster(entity);
         boolean isAnimal = entity instanceof Animals;
 
         if (!isBat && !(isMonster || isAnimal)) return;
-
         if (reason == SpawnReason.SLIME_SPLIT) return;
 
-        WorldSettings settings = this.settingsManager.get(event.getEntity().getWorld());
-        if (settings.noMonsterSpawnIgnoreSpawners && Util.isSpawnerReason(reason)) return;
 
-        event.setCancelled(true);
+        if (cachedClaim != null && cachedClaim.contains(event.getLocation(), false, false)) {
+        } else {
+            cachedClaim = GriefPrevention.instance.dataStore.getClaimAt(event.getLocation(), false, false, cachedClaim);
+        }
+
+        Flag flag = this.getEffectiveFlag(cachedClaim, event.getLocation());
+
+        if (flag != null) {
+            WorldSettings settings = this.settingsManager.get(event.getEntity().getWorld());
+            if (!(settings.noMonsterSpawnIgnoreSpawners && Util.isSpawnerReason(reason))) {
+                event.setCancelled(true);
+            }
+        }
     }
 
     @Override

@@ -133,6 +133,12 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.EnableNoPlayerDamage, "Players will not take any damage in this land claim.", null);
         this.addDefault(defaults, Messages.DisableNoPlayerDamage, "Stopped preventing player damage in this land claim.", null);
 
+        this.addDefault(defaults, Messages.EnabledNoElevator, "Elevators are disabled in this claim.", null);
+        this.addDefault(defaults, Messages.DisabledNoElevator, "Elevators are enabled in this claim.", null);
+
+        this.addDefault(defaults, Messages.EnableNoCreatingFire, "Fire can now not be created in this claim.", null);
+        this.addDefault(defaults, Messages.DisableNoCreatingFire, "Fire can now be created in this claim.", null);
+
         this.addDefault(defaults, Messages.EnableNoPlayerDamageByMonster, "Players will not take any damage by monsters in this land claim.", null);
         this.addDefault(defaults, Messages.DisableNoPlayerDamageByMonster, "Stopped preventing player damage by monsters in this land claim.", null);
 
@@ -230,8 +236,8 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.OwnerMemberFlightEnabled, "The owner and members with access trust or higher can now fly in this claim.", null);
         this.addDefault(defaults, Messages.OwnerMemberFlightDisabled, "The owner and members of this claim can no longer fly in this claim.", null);
 
-        this.addDefault(defaults, Messages.PermissionFlightEnabled, "PermissionFly has been enabled in this region.", null);
-        this.addDefault(defaults, Messages.PermissionFlightDisabled, "PermissionFly has been disabled in this region.", null);
+        this.addDefault(defaults, Messages.AllowFlyForEveryoneEnabled, "Everyone can now fly in this region.", null);
+        this.addDefault(defaults, Messages.AllowFlyForEveryoneDisabled, "Everyone can no longer fly in this region.", null);
 
         this.addDefault(defaults, Messages.EnabledNoEnterPlayer, "Enabled NoEnterPlayer for the following {1} players: {0}", "0: players to block. 1: number of players to block");
         this.addDefault(defaults, Messages.DisabledNoEnterPlayer, "Disabled NoEnterPlayer.", null);

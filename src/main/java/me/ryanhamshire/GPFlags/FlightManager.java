@@ -174,7 +174,7 @@ public class FlightManager implements Listener {
             return false;
         }
         if (manageFlight) {
-            if (FlagDef_PermissionFly.letPlayerFly(player, location, claim)) {
+            if (FlagDef_AllowFlyForEveryone.letPlayerFly(player, location, claim)) {
                 return true;
             }
         }

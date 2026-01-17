@@ -21,17 +21,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Base flag definition
- * <p>When creating a new flag, extend from this class</p>
- */
 public abstract class FlagDefinition implements Listener {
 
     private final FlagManager flagManager;
     WorldSettingsManager settingsManager;
     private int instances = 0;
     protected GPFlags plugin;
-    protected Claim cachedClaim = null;
+
+    private static final ThreadLocal<Claim> TL_CLAIM_HINT = new ThreadLocal<>();
 
     public FlagDefinition(FlagManager manager, GPFlags plugin) {
         this.flagManager = manager;
@@ -53,27 +50,32 @@ public abstract class FlagDefinition implements Listener {
         return Arrays.asList(FlagType.CLAIM, FlagType.DEFAULT, FlagType.WORLD, FlagType.SERVER);
     }
 
-    // Called when a flag is set to false/true, etc.
     public void onFlagSet(Claim claim, String params) {
     }
 
-    // Called when the flag is killed
     public void onFlagUnset(Claim claim) {
     }
 
-    /**
-     * Get an instance of a flag at a location
-     * @param location Location for checking for flag
-     * @param player Player for checking cached claims
-     * @return Logical instance of flag at location
-     */
     public Flag getFlagInstanceAtLocation(@NotNull Location location, @Nullable Player player) {
-        if (cachedClaim == null && player != null) {
-            PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
-            cachedClaim = playerData.lastClaim;
+        Claim hint;
+        PlayerData playerData;
+
+        if (player != null) {
+            playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
+            hint = playerData.lastClaim;
+        } else {
+            playerData = null;
+            hint = TL_CLAIM_HINT.get();
         }
-        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(location, false, false, cachedClaim);
-        cachedClaim = claim;
+
+        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(location, false, false, hint);
+
+        if (playerData != null) {
+            playerData.lastClaim = claim;
+        } else {
+            TL_CLAIM_HINT.set(claim);
+        }
+
         return flagManager.getEffectiveFlag(location, this.getName(), claim);
     }
 
@@ -93,7 +95,7 @@ public abstract class FlagDefinition implements Listener {
     }
 
     private boolean hasRegisteredEvents = false;
-    
+
     public void firstTimeSetup() {
         if (hasRegisteredEvents) return;
         hasRegisteredEvents = true;
@@ -104,25 +106,10 @@ public abstract class FlagDefinition implements Listener {
         this.settingsManager = settingsManager;
     }
 
-    /**
-     * Flag types <br>Defines the types of claims a flag can be set in
-     */
     public enum FlagType {
-        /**
-         * Flag can be set in a claim
-         */
         CLAIM("<green>CLAIM"),
-        /**
-         * Flag can be set for an entire world
-         */
         WORLD("<gold>WORLD"),
-        /**
-         * Flag can bet set for the entire server
-         */
         SERVER("<dark_aqua>SERVER"),
-        /**
-         * Flag can be set as a default flag
-         */
         DEFAULT("<YELLOW>DEFAULT");
 
         String name;
@@ -136,5 +123,4 @@ public abstract class FlagDefinition implements Listener {
             return name + "<grey>";
         }
     }
-
 }

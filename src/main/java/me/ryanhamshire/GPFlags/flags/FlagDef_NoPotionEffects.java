@@ -9,9 +9,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.Nullable;
@@ -65,25 +63,34 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
         }
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onPotionEffect(EntityPotionEffectEvent event) {
         Entity entity = event.getEntity();
         Player player = null;
         if (entity instanceof Player) {
             player = (Player) event.getEntity();
-            if (player.hasPermission("gpflags.bypass.nopotioneffects")) return;
         }
+
+        // OPTIMIZATION: Check for flag existence first.
         Flag flag = this.getFlagInstanceAtLocation(event.getEntity().getLocation(), player);
         if (flag == null) return;
+
+        // NOW check permissions (lazy evaluation)
+        if (player != null && player.hasPermission("gpflags.bypass.nopotioneffects")) {
+            return;
+        }
+
         PotionEffect potionEffect = event.getNewEffect();
         if (potionEffect == null) return;
 
         PotionEffectType effectType = potionEffect.getType();
         String[] paramArray = flag.getParametersArray();
+
         if (flag.parameters.equalsIgnoreCase("all")) {
             event.setCancelled(true);
             return;
         }
+
         for (String string : paramArray) {
             if (effectType.getName().equalsIgnoreCase(string)) {
                 event.setCancelled(true);
@@ -123,5 +130,4 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
     public MessageSpecifier getUnSetMessage() {
         return new MessageSpecifier(Messages.DisabledNoPotionEffects);
     }
-
 }

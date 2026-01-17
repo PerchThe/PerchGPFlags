@@ -17,7 +17,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!--This is used to show the build number for jenkins.-->
         <!--suppress UnresolvedMavenProperty -->
-        <build.number>perchcustom</build.number>
+        <build.number>perch</build.number>
     </properties>
 
     <repositories>
@@ -55,6 +55,13 @@
             <artifactId>purpur-api</artifactId>
             <version>1.21.8-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>me.perch</groupId>
+            <artifactId>PerchElevator</artifactId>
+            <version>2.1.1-DEV</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/PerchElevator-2.1.1-DEV.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>net.luckperms</groupId>

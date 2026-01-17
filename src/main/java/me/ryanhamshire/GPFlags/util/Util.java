@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("WeakerAccess")
 public class Util {
@@ -39,7 +40,6 @@ public class Util {
             return claim.allowAccess(player) == null;
         }
     }
-
 
     public static boolean canInventory(Claim claim, Player player) {
         PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
@@ -84,8 +84,11 @@ public class Util {
     public static List<String> flagTab(CommandSender sender, String arg) {
         List<String> flags = new ArrayList<>();
         GPFlags.getInstance().getFlagManager().getFlagDefinitions().forEach(flagDefinition -> {
-            if (sender.hasPermission("gpflags.flag." + flagDefinition.getName())) {
-                flags.add(flagDefinition.getName());
+            String perm = "gpflags.flag." + flagDefinition.getName();
+            if (sender instanceof Player) {
+                if (hasPerm((Player) sender, perm)) flags.add(flagDefinition.getName());
+            } else {
+                if (sender.hasPermission(perm)) flags.add(flagDefinition.getName());
             }
         });
         return StringUtil.copyPartialMatches(arg, flags, new ArrayList<>());
@@ -185,19 +188,10 @@ public class Util {
         }
     }
 
-    /**
-     * We want to consider someone above the world height to be within a claim
-     * but below world height to not be in a claim.
-     * @param loc Actual location
-     * @return A mock location for the player that can be used to find the claim
-     */
     public static Location getInBoundsLocation(@NotNull Location loc) {
-        // If we're below max height, mock location can be the same
         World world = loc.getWorld();
         int maxHeight = getMaxHeight(world);
         if (loc.getBlockY() <= maxHeight) return loc;
-
-        // If we're above max height, make a new mock location
         return new Location(loc.getWorld(), loc.getX(), maxHeight, loc.getZ());
     }
 
@@ -212,14 +206,20 @@ public class Util {
     }
 
     public static boolean shouldBypass(@NotNull Player p, @Nullable Claim c, @NotNull String basePerm) {
-        if (p.hasPermission(basePerm)) return true;
-        if (c == null) return p.hasPermission(basePerm + ".nonclaim");
-        if (c.getOwnerID() == null && p.hasPermission(basePerm + ".adminclaim")) return true;
-        if (isClaimOwner(c, p) && p.hasPermission(basePerm + ".ownclaim")) return true;
-        if (canManage(c, p) && p.hasPermission(basePerm + ".manage")) return true;
-        if (canBuild(c, p) && (p.hasPermission(basePerm + ".build") || p.hasPermission(basePerm + ".edit"))) return true;
-        if (canInventory(c, p) && p.hasPermission(basePerm + ".inventory")) return true;
-        if (canAccess(c, p) && p.hasPermission(basePerm + ".access")) return true;
+        if (hasPerm(p, basePerm)) return true;
+
+        if (c == null) return hasPerm(p, basePerm + ".nonclaim");
+        if (c.getOwnerID() == null && hasPerm(p, basePerm + ".adminclaim")) return true;
+        if (isClaimOwner(c, p) && hasPerm(p, basePerm + ".ownclaim")) return true;
+
+        if (hasPerm(p, basePerm + ".manage") && canManage(c, p)) return true;
+
+        boolean wantsBuild = hasPerm(p, basePerm + ".build") || hasPerm(p, basePerm + ".edit");
+        if (wantsBuild && canBuild(c, p)) return true;
+
+        if (hasPerm(p, basePerm + ".inventory") && canInventory(c, p)) return true;
+        if (hasPerm(p, basePerm + ".access") && canAccess(c, p)) return true;
+
         return false;
     }
 
@@ -239,11 +239,6 @@ public class Util {
         return players;
     }
 
-    /**
-     * Gets a list of all flags the user has permission for
-     * @param player The player whose perms we want to check
-     * @return A message showing all the flags player can use
-     */
     public static String getAvailableFlags(Permissible player) {
         StringBuilder flagDefsList = new StringBuilder();
         Collection<FlagDefinition> defs = GPFlags.getInstance().getFlagManager().getFlagDefinitions();
@@ -251,11 +246,21 @@ public class Util {
         sortedDefs.sort(Comparator.comparing(FlagDefinition::getName));
 
         flagDefsList.append("<aqua>");
-        for (FlagDefinition def : sortedDefs) {
-            if (player.hasPermission("gpflags.flag." + def.getName())) {
-                flagDefsList.append(def.getName()).append("<grey>,<aqua> ");
+        if (player instanceof Player) {
+            Player p = (Player) player;
+            for (FlagDefinition def : sortedDefs) {
+                if (hasPerm(p, "gpflags.flag." + def.getName())) {
+                    flagDefsList.append(def.getName()).append("<grey>,<aqua> ");
+                }
+            }
+        } else {
+            for (FlagDefinition def : sortedDefs) {
+                if (player.hasPermission("gpflags.flag." + def.getName())) {
+                    flagDefsList.append(def.getName()).append("<grey>,<aqua> ");
+                }
             }
         }
+
         String def = flagDefsList.toString();
         if (def.length() > 5) {
             def = def.substring(0, def.length() - 4);
@@ -278,7 +283,7 @@ public class Util {
 
         InventoryHolder holder = (InventoryHolder) vehicle;
         for (ItemStack stack : holder.getInventory()) {
-            if (stack != null ) {
+            if (stack != null) {
                 drops.add(stack);
             }
         }
@@ -300,24 +305,16 @@ public class Util {
                 world.dropItem(location, stack);
             }
         }
-
     }
 
-    /**
-     * Get the list of Players who move with this player
-     * @param entity
-     * @return
-     */
     public static Set<Player> getMovementGroup(Entity entity) {
         Set<Player> group = new HashSet<>();
 
-        // Add the entity if it's a person
         if (entity instanceof Player) {
             Player player = (Player) entity;
             group.add(player);
         }
 
-        // Add everyone riding the entity
         List<Entity> passengers = entity.getPassengers();
         for (Entity passenger : passengers) {
             if (passenger instanceof Player) {
@@ -326,7 +323,6 @@ public class Util {
             }
         }
 
-        // Get all passengers riding the same vehicle as entity
         Entity mount = entity.getVehicle();
         if (mount instanceof Vehicle) {
             Vehicle vehicle = (Vehicle) mount;
@@ -342,13 +338,66 @@ public class Util {
         return group;
     }
 
+    private static final SpawnReason TRIAL_SPAWNER_REASON = resolveTrialSpawner();
+
     public static boolean isSpawnerReason(SpawnReason reason) {
         if (reason == SpawnReason.SPAWNER) return true;
         if (reason == SpawnReason.SPAWNER_EGG) return true;
-        try {
-            if (reason == SpawnReason.TRIAL_SPAWNER) return true;
-        } catch (NoSuchFieldError ignored) {}
+        if (TRIAL_SPAWNER_REASON != null && reason == TRIAL_SPAWNER_REASON) return true;
         return false;
     }
 
+    private static SpawnReason resolveTrialSpawner() {
+        try {
+            return SpawnReason.TRIAL_SPAWNER;
+        } catch (NoSuchFieldError e) {
+            return null;
+        }
+    }
+
+    private static final PermissionCache PERM_CACHE = new PermissionCache(1000L);
+
+    public static boolean hasPerm(Player p, String perm) {
+        return PERM_CACHE.has(p, perm);
+    }
+
+    public static void invalidatePermCache(Player p) {
+        if (p == null) return;
+        PERM_CACHE.invalidate(p.getUniqueId());
+    }
+
+    private static final class PermissionCache {
+        private final long ttlMillis;
+        private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, Entry>> cache = new ConcurrentHashMap<>();
+
+        private PermissionCache(long ttlMillis) {
+            this.ttlMillis = ttlMillis;
+        }
+
+        private boolean has(Player player, String permission) {
+            long now = System.currentTimeMillis();
+            UUID uuid = player.getUniqueId();
+            ConcurrentHashMap<String, Entry> perms = cache.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>());
+            Entry entry = perms.get(permission);
+            if (entry != null && entry.expiresAt >= now) return entry.value;
+
+            boolean value = player.hasPermission(permission);
+            perms.put(permission, new Entry(value, now + ttlMillis));
+            return value;
+        }
+
+        private void invalidate(UUID uuid) {
+            cache.remove(uuid);
+        }
+
+        private static final class Entry {
+            private final boolean value;
+            private final long expiresAt;
+
+            private Entry(boolean value, long expiresAt) {
+                this.value = value;
+                this.expiresAt = expiresAt;
+            }
+        }
+    }
 }
