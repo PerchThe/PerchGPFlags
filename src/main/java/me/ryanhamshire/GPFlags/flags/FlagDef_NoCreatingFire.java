@@ -2,6 +2,7 @@ package me.ryanhamshire.GPFlags.flags;
 
 import me.ryanhamshire.GPFlags.*;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockIgniteEvent;
@@ -12,14 +13,16 @@ public class FlagDef_NoCreatingFire extends FlagDefinition {
         super(manager, plugin);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onIgnite(BlockIgniteEvent event) {
         Block block = event.getBlock();
+        Player player = event.getPlayer();
 
-        Flag flag = this.getFlagInstanceAtLocation(block.getLocation(), null);
-        if (flag == null) return;
+        Flag flag = this.getFlagInstanceAtLocation(block.getLocation(), player);
 
-        event.setCancelled(true);
+        if (flag != null) {
+            event.setCancelled(true);
+        }
     }
 
     @Override
