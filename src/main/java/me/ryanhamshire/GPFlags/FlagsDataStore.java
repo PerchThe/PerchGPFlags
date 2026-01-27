@@ -426,8 +426,9 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.EnabledNoPlaceCertainBlock, "This claim now protects certain blocks from being placed.", null);
         this.addDefault(defaults, Messages.DisabledNoPlaceCertainBlock, "This claim no longer protects certain blocks from being placed.", null);
         this.addDefault(defaults, Messages.NoPlaceCertainBlockMessage, "You cannot place {block} in this claim!", null);
-
-
+        this.addDefault(defaults, Messages.EnableNoSetBedSpawn, "Players may no longer set their bed spawn in this claim.", null);
+        this.addDefault(defaults, Messages.DisableNoSetBedSpawn, "Players may now set their bed spawn in this claim.", null);
+        this.addDefault(defaults, Messages.SetBedSpawnDisabled, "You can't set a respawn point in this claim!", null);
         //load the config file
         File file = new File(messagesFilePath);
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);

@@ -49,7 +49,7 @@ public class FlagDef_ReadLecterns extends FlagDefinition {
         Claim claim = GriefPrevention.instance.dataStore.getClaimAt(block.getLocation(), false, playerData.lastClaim);
         if (claim == null) return;
         if (player.getUniqueId().equals(claim.getOwnerID())) return;
-        if (claim.checkPermission(player, ClaimPermission.Inventory, null) == null) return;
+        if (claim.checkPermission(player, ClaimPermission.Access, null) == null) return;
         Lectern lectern = (Lectern) state;
         ItemStack book = lectern.getInventory().getItem(0);
         if (book == null || book.getType() == Material.AIR) return;
