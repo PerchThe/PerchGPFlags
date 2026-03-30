@@ -429,6 +429,8 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.EnableNoSetBedSpawn, "Players may no longer set their bed spawn in this claim.", null);
         this.addDefault(defaults, Messages.DisableNoSetBedSpawn, "Players may now set their bed spawn in this claim.", null);
         this.addDefault(defaults, Messages.SetBedSpawnDisabled, "You can't set a respawn point in this claim!", null);
+        this.addDefault(defaults, Messages.EnableEggSpleef, "Egg Spleef enabled in this claim!", null);
+        this.addDefault(defaults, Messages.DisableEggSpleef, "Egg Spleef disabled in this claim!", null);
         //load the config file
         File file = new File(messagesFilePath);
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);

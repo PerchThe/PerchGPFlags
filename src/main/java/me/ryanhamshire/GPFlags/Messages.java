@@ -315,5 +315,8 @@ public enum Messages {
     DisableNoSetBedSpawn,
     SetBedSpawnDisabled,
 
+    EnableEggSpleef,
+    DisableEggSpleef,
+
     Prefix
 }
