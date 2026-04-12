@@ -10,7 +10,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
-import org.bukkit.event.vehicle.VehicleDamageEvent;
 
 public class FlagDef_NoExplosionDamage extends FlagDefinition {
 
@@ -40,34 +39,6 @@ public class FlagDef_NoExplosionDamage extends FlagDefinition {
         if (flag == null) return;
 
         e.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onVehicleDamage(VehicleDamageEvent event) {
-        Vehicle vehicle = event.getVehicle();
-
-        EntityDamageEvent last = vehicle.getLastDamageCause();
-
-        boolean isExplosion = false;
-
-        if (last != null) {
-            EntityDamageEvent.DamageCause cause = last.getCause();
-            if (cause == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION ||
-                    cause == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
-                isExplosion = true;
-            }
-        }
-        // to handle tnt primed using redstone
-        else if (event.getAttacker() == null) {
-            isExplosion = true;
-        }
-
-        if (!isExplosion) return;
-
-        Flag flag = this.getFlagInstanceAtLocation(vehicle.getLocation(), null);
-        if (flag == null) return;
-
-        event.setCancelled(true);
     }
 
     @Override

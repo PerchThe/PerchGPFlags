@@ -318,5 +318,8 @@ public enum Messages {
     EnableEggSpleef,
     DisableEggSpleef,
 
+    EnabledNoVehicleDamage,
+    DisabledNoVehicleDamage,
+
     Prefix
 }
