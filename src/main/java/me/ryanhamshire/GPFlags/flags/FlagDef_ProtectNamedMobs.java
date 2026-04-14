@@ -37,15 +37,6 @@ public class FlagDef_ProtectNamedMobs extends FlagDefinition {
         if (eType == EntityType.GLOW_ITEM_FRAME) return;
         if (MythicMobsHook.isMythicMob(entity)) return;
 
-        Entity damager = event.getDamager();
-        if (damager.getType() != EntityType.PLAYER) {
-            event.setCancelled(true);
-            return;
-        }
-
-        Player player = (Player) damager;
-        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(entity.getLocation(), false, null);
-        if (claim != null && claim.getPermission(player.getUniqueId().toString()) == ClaimPermission.Inventory) return;
         event.setCancelled(true);
     }
 

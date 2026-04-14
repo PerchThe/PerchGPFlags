@@ -44,6 +44,7 @@ public class FlagDef_NoMonsterSpawns extends FlagDefinition {
         if (reason == SpawnReason.BREEDING) return;
         if (reason == SpawnReason.BUCKET) return;
         if (reason == SpawnReason.EGG) return;
+        if (reason == SpawnReason.SHOULDER_ENTITY) return;
 
         try {
             if (reason == SpawnReason.valueOf("BEEHIVE")) return;

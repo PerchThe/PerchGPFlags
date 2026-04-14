@@ -96,6 +96,9 @@ commands:
     description: Unsets a flag for all of the player's claims
     usage: /bulkunsetflag <player> <flag>
     permission: gpflags.command.bulkunsetflag
+  eggspleefreset:
+    description: Reset EggSpleef arena
+    permission: gpflags.admin
 permissions:
   gpflags.admin.*:
     description: Grants all administrative functionality. (depreciated)
