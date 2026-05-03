@@ -27,7 +27,10 @@ public class FlagDef_EnterMessage extends PlayerMovementFlagDefinition {
     public void onChangeClaim(Player player, Location lastLocation, Location to, Claim claimFrom, Claim claimTo, @Nullable Flag flagFrom, @Nullable Flag flagTo) {
         if (flagTo == null) return;
         if (flagFrom != null && flagFrom.parameters.equals(flagTo.parameters)) return;
-        sendMessage(flagTo, player, claimTo);
+
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            sendMessage(flagTo, player, claimTo);
+        });
     }
 
     public void sendMessage(Flag flag, Player player, Claim claim) {
