@@ -48,7 +48,8 @@ public class FlagDef_ProtectNamedMobs extends FlagDefinition {
 
         if (cause != EntityDamageEvent.DamageCause.SUFFOCATION
                 && cause != EntityDamageEvent.DamageCause.CRAMMING
-                && cause != EntityDamageEvent.DamageCause.DROWNING) {
+                && cause != EntityDamageEvent.DamageCause.DROWNING
+                && cause != EntityDamageEvent.DamageCause.FALL) {
             return;
         }
 
