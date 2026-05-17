@@ -214,6 +214,7 @@ public class GPFlagsConfig {
             this.flagManager.registerFlagDefinition(new FlagDef_NoSetBedSpawn(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_EggSpleef(this.flagManager, plugin));
             this.flagManager.registerFlagDefinition(new FlagDef_NoVehicleDamage(this.flagManager, plugin));
+            this.flagManager.registerFlagDefinition(new FlagDef_PerchPlace(this.flagManager, plugin));
 
             try {
                 Class.forName("org.bukkit.event.raid.RaidTriggerEvent");

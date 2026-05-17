@@ -45,7 +45,10 @@ public class FlagDef_ProtectNamedMobs extends FlagDefinition {
         if (event instanceof EntityDamageByEntityEvent) return;
 
         EntityDamageEvent.DamageCause cause = event.getCause();
-        if (cause != EntityDamageEvent.DamageCause.SUFFOCATION && cause != EntityDamageEvent.DamageCause.CRAMMING) {
+
+        if (cause != EntityDamageEvent.DamageCause.SUFFOCATION
+                && cause != EntityDamageEvent.DamageCause.CRAMMING
+                && cause != EntityDamageEvent.DamageCause.DROWNING) {
             return;
         }
 
