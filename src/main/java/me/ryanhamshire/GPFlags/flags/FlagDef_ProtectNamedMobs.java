@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,6 +24,34 @@ public class FlagDef_ProtectNamedMobs extends FlagDefinition {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
+        Entity entity = event.getEntity();
+
+        Flag flag = this.getFlagInstanceAtLocation(entity.getLocation(), null);
+        if (flag == null) return;
+        if (entity.getCustomName() == null) return;
+
+        EntityType eType = entity.getType();
+        if (eType == EntityType.PLAYER) return;
+        if (eType == EntityType.ARMOR_STAND) return;
+        if (eType == EntityType.ITEM_FRAME) return;
+        if (eType == EntityType.GLOW_ITEM_FRAME) return;
+        if (MythicMobsHook.isMythicMob(entity)) return;
+
+        event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEnvironmentalDamage(EntityDamageEvent event) {
+        if (event instanceof EntityDamageByEntityEvent) return;
+
+        EntityDamageEvent.DamageCause cause = event.getCause();
+
+        if (cause != EntityDamageEvent.DamageCause.SUFFOCATION
+                && cause != EntityDamageEvent.DamageCause.CRAMMING
+                && cause != EntityDamageEvent.DamageCause.DROWNING) {
+            return;
+        }
+
         Entity entity = event.getEntity();
 
         Flag flag = this.getFlagInstanceAtLocation(entity.getLocation(), null);

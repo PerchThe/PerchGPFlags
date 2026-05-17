@@ -321,5 +321,8 @@ public enum Messages {
     EnabledNoVehicleDamage,
     DisabledNoVehicleDamage,
 
+    EnablePerchPlace,
+    DisablePerchPlace,
+
     Prefix
 }

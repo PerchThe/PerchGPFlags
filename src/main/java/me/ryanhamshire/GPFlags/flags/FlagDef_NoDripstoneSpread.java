@@ -7,22 +7,30 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockSpreadEvent;
 
-import java.util.Arrays;
-import java.util.List;
-
 public class FlagDef_NoDripstoneSpread extends FlagDefinition {
 
     public FlagDef_NoDripstoneSpread(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onSpread(BlockSpreadEvent event) {
-        Block block = event.getBlock();
-        Material material = block.getType();
-        if (material != Material.POINTED_DRIPSTONE) return;
+        Block targetBlock = event.getBlock();
 
-        Flag flag = this.getFlagInstanceAtLocation(block.getLocation(), null);
+        boolean createsPointedDripstone =
+                event.getNewState().getType() == Material.POINTED_DRIPSTONE;
+
+        boolean affectsExistingPointedDripstone =
+                targetBlock.getType() == Material.POINTED_DRIPSTONE;
+
+        boolean comesFromPointedDripstone =
+                event.getSource().getType() == Material.POINTED_DRIPSTONE;
+
+        if (!createsPointedDripstone && !affectsExistingPointedDripstone && !comesFromPointedDripstone) {
+            return;
+        }
+
+        Flag flag = this.getFlagInstanceAtLocation(targetBlock.getLocation(), null);
         if (flag == null) return;
 
         event.setCancelled(true);
@@ -42,5 +50,4 @@ public class FlagDef_NoDripstoneSpread extends FlagDefinition {
     public MessageSpecifier getUnSetMessage() {
         return new MessageSpecifier(Messages.DisableNoDripstoneSpread);
     }
-
 }

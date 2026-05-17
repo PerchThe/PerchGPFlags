@@ -433,6 +433,9 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.DisableEggSpleef, "Egg Spleef disabled in this claim!", null);
         this.addDefault(defaults, Messages.EnabledNoVehicleDamage, "Vehicles will no longer take damage caused by explosions in this claim.", null);
         this.addDefault(defaults, Messages.DisabledNoVehicleDamage, "Vehicles will now continue to take damage caused by explosions in this claim.", null);
+        this.addDefault(defaults, Messages.EnablePerchPlace, "Perch r/place has been enabled in this claim.", null);
+        this.addDefault(defaults, Messages.DisablePerchPlace, "Perch r/place has been disabled in this claim.", null);
+
         //load the config file
         File file = new File(messagesFilePath);
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);
