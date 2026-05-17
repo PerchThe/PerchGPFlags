@@ -58,7 +58,6 @@ public class NoMobSpawnsGate implements Listener {
 
         if (!flagName.equalsIgnoreCase("NoMonsterSpawns") && !flagName.equalsIgnoreCase("NoMobSpawns")) return;
 
-        // Optional slot index (purely cosmetic for messages; cap logic does not require it)
         Integer requestedIndex = null;
         if (parts.length >= 4) {
             try { requestedIndex = Integer.parseInt(parts[3]); } catch (NumberFormatException ignored) {}
@@ -79,7 +78,7 @@ public class NoMobSpawnsGate implements Listener {
             return;
         }
 
-        UUID ownerId = claim.getOwnerID();
+        UUID ownerId = claim.parent == null ? claim.getOwnerID() : claim.parent.getOwnerID();
         if (ownerId == null || !ownerId.equals(subject.getUniqueId())) {
             subject.sendMessage("§cOnly the claim owner can enable §eNo Monster Spawns§c here.");
             if (actor != null && actor != subject) actor.sendMessage("§cOnly the claim owner can enable it.");
@@ -87,12 +86,11 @@ public class NoMobSpawnsGate implements Listener {
             return;
         }
 
-        // Unlimited/bypass short-circuit
         if (subject.hasPermission("nomobspawns.unlimited") || subject.hasPermission("nomobspawns.bypass")) {
             return;
         }
 
-        int cap = getCapFromPermissions(subject); // 0/1/2/3 or MAX_VALUE
+        int cap = getCapFromPermissions(subject);
         if (cap <= 0) {
             subject.sendMessage("§cYou are not allowed to enable §eNo Monster Spawns§c on any claim.");
             if (actor != null && actor != subject) actor.sendMessage("§cThat player has no allowance for this flag.");
@@ -128,16 +126,30 @@ public class NoMobSpawnsGate implements Listener {
         if (subject.hasPermission("nomobspawns.claim.2")) cap++;
         if (subject.hasPermission("nomobspawns.claim.3")) cap++;
 
-        return 0;
+        return cap;
     }
 
     private int countOtherFlaggedClaims(UUID owner, Claim except) {
         PlayerData pd = GriefPrevention.instance.dataStore.getPlayerData(owner);
         if (pd == null) return 0;
         int count = 0;
+
         for (Claim c : pd.getClaims()) {
-            if (c == null || c.equals(except)) continue;
-            if (isFlagActiveInClaim(c)) count++;
+            if (c == null) continue;
+
+            boolean parentActive = isFlagActiveInClaim(c);
+
+            if (!c.equals(except) && parentActive) {
+                count++;
+            }
+
+            if (!parentActive && c.children != null) {
+                for (Claim child : c.children) {
+                    if (child != null && !child.equals(except) && isFlagActiveInClaim(child)) {
+                        count++;
+                    }
+                }
+            }
         }
         return count;
     }

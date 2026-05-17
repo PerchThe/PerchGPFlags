@@ -32,7 +32,6 @@ public class PlaceholderApiHook extends PlaceholderExpansion {
         this.plugin = plugin;
     }
 
-    /** Used to add other plugin's placeholders to GPFlags messages */
     public static String addPlaceholders(OfflinePlayer player, String message) {
         return PlaceholderAPI.setPlaceholders(player, message);
     }
@@ -48,7 +47,6 @@ public class PlaceholderApiHook extends PlaceholderExpansion {
         if (!(offlinePlayer instanceof Player)) return null;
         Player player = (Player) offlinePlayer;
 
-        // ---- Simple limit/count API
         if (identifier.equals("nomobspawns_limit")) {
             return String.valueOf(getCapFromPermissions(player));
         }
@@ -56,7 +54,6 @@ public class PlaceholderApiHook extends PlaceholderExpansion {
             return String.valueOf(listFlaggedClaims(player.getUniqueId()).size());
         }
 
-        // ---- Booleans for DeluxeMenus (avoid number-vs-number compares)
         if (identifier.equals("nomobspawns_at_limit")) {
             int limit = getCapFromPermissions(player);
             if (limit == Integer.MAX_VALUE) return "No";
@@ -74,18 +71,16 @@ public class PlaceholderApiHook extends PlaceholderExpansion {
             return (count < limit) ? "Yes" : "No";
         }
 
-        // ---- Coords for first/second/third flagged claims
         if (identifier.equals("nomobspawns_claim_1")
                 || identifier.equals("nomobspawns_claim_2")
                 || identifier.equals("nomobspawns_claim_3")) {
 
-            int index = identifier.charAt(identifier.length() - 1) - '1'; // 0..2
+            int index = identifier.charAt(identifier.length() - 1) - '1';
             List<Claim> claims = listFlaggedClaims(player.getUniqueId());
             if (index < 0 || index >= claims.size()) return "";
             return niceLoc(getClaimCenter(claims.get(index)));
         }
 
-        // ---- Existing GPFlags placeholders (unchanged)
         if (identifier.startsWith("cansetclaimflag_")) {
             String flagName = identifier.substring(identifier.indexOf('_') + 1);
 
@@ -122,14 +117,27 @@ public class PlaceholderApiHook extends PlaceholderExpansion {
         return null;
     }
 
-    // ===== Helpers =====
-
     private List<Claim> listFlaggedClaims(UUID owner) {
-        List<Claim> out = new ArrayList<Claim>();
+        List<Claim> out = new ArrayList<>();
         PlayerData pd = GriefPrevention.instance.dataStore.getPlayerData(owner);
         if (pd == null) return out;
+
         for (Claim c : pd.getClaims()) {
-            if (c != null && isNoMobSpawnsActiveIn(c)) out.add(c);
+            if (c == null) continue;
+
+            boolean parentActive = isNoMobSpawnsActiveIn(c);
+
+            if (parentActive) {
+                out.add(c);
+            }
+
+            if (!parentActive && c.children != null) {
+                for (Claim child : c.children) {
+                    if (child != null && isNoMobSpawnsActiveIn(child)) {
+                        out.add(child);
+                    }
+                }
+            }
         }
         return out;
     }
@@ -153,7 +161,6 @@ public class PlaceholderApiHook extends PlaceholderExpansion {
         return false;
     }
 
-    // NON-HIERARCHICAL: each permission adds +1 slot
     private int getCapFromPermissions(Player subject) {
         if (subject == null) return 0;
         if (subject.hasPermission("nomobspawns.unlimited") || subject.hasPermission("nomobspawns.bypass"))
