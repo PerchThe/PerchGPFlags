@@ -16,10 +16,29 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class FlagDef_NoEnter extends PlayerMovementFlagDefinition {
+
+    // Map to store the last time a message was sent to a player
+    private final Map<UUID, Long> messageCooldowns = new ConcurrentHashMap<>();
+    private static final long COOLDOWN_MILLIS = 3000L; // 3 seconds
 
     public FlagDef_NoEnter(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
+    }
+
+    // Helper method to handle rate-limiting the message
+    private void sendRateLimitedMessage(Player player) {
+        long currentTime = System.currentTimeMillis();
+        long lastTime = messageCooldowns.getOrDefault(player.getUniqueId(), 0L);
+
+        if (currentTime - lastTime >= COOLDOWN_MILLIS) {
+            MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterMessage);
+            messageCooldowns.put(player.getUniqueId(), currentTime);
+        }
     }
 
     @Override
@@ -29,6 +48,7 @@ public class FlagDef_NoEnter extends PlayerMovementFlagDefinition {
             if (claim.contains(Util.getInBoundsLocation(p), false, false)) {
                 if (!Util.canAccess(claim, p) && !p.hasPermission("gpflags.bypass.noenter")) {
                     GriefPrevention.instance.ejectPlayer(p);
+                    sendRateLimitedMessage(p); // Added so they know why they were ejected
                 }
             }
         }
@@ -39,7 +59,7 @@ public class FlagDef_NoEnter extends PlayerMovementFlagDefinition {
         Flag flag = getEffectiveFlag(claimTo, to);
         if (isAllowed(flag, claimTo, player)) return true;
 
-        MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterMessage);
+        sendRateLimitedMessage(player);
         return false;
     }
 
@@ -47,7 +67,7 @@ public class FlagDef_NoEnter extends PlayerMovementFlagDefinition {
     public void onChangeClaim(@NotNull Player player, @Nullable Location from, @NotNull Location to, @Nullable Claim claimFrom, @Nullable Claim claimTo, @Nullable Flag flagFrom, @Nullable Flag flagTo) {
         if (isAllowed(flagTo, claimTo, player)) return;
 
-        MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterMessage);
+        sendRateLimitedMessage(player);
         GriefPrevention.instance.ejectPlayer(player);
     }
 

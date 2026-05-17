@@ -18,10 +18,29 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
+
+    // Map to store the last time a message was sent to a player
+    private final Map<UUID, Long> messageCooldowns = new ConcurrentHashMap<>();
+    private static final long COOLDOWN_MILLIS = 3000L; // 3 seconds
 
     public FlagDef_NoEnterPlayer(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
+    }
+
+    // Helper method to handle rate-limiting the message
+    private void sendRateLimitedMessage(Player player) {
+        long currentTime = System.currentTimeMillis();
+        long lastTime = messageCooldowns.getOrDefault(player.getUniqueId(), 0L);
+
+        if (currentTime - lastTime >= COOLDOWN_MILLIS) {
+            MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
+            messageCooldowns.put(player.getUniqueId(), currentTime);
+        }
     }
 
     @Override
@@ -30,7 +49,7 @@ public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
         for (Player player : Util.getPlayersIn(claim)) {
             if (!isAllowed(player, claim, flag)) {
                 GriefPrevention.instance.ejectPlayer(player);
-                MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
+                sendRateLimitedMessage(player);
             }
         }
     }
@@ -40,7 +59,7 @@ public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
         Flag flag = getEffectiveFlag(claimTo, to);
         if (isAllowed(player, claimTo, flag)) return true;
 
-        MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
+        sendRateLimitedMessage(player);
         return false;
     }
 
@@ -49,7 +68,7 @@ public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
         if (flagTo == null) return;
         if (isAllowed(player, claimTo, flagTo)) return;
 
-        MessagingUtil.sendMessage(player, TextMode.Err, Messages.NoEnterPlayerMessage);
+        sendRateLimitedMessage(player);
         GriefPrevention.instance.ejectPlayer(player);
     }
 
@@ -86,7 +105,7 @@ public class FlagDef_NoEnterPlayer extends PlayerMovementFlagDefinition {
 
     @Override
     public MessageSpecifier getSetMessage(String parameters) {
-        String[] words = parameters.split(" "); 
+        String[] words = parameters.split(" ");
         String numPlayers = String.valueOf(words.length);
         return new MessageSpecifier(Messages.EnabledNoEnterPlayer, parameters, numPlayers);
     }
