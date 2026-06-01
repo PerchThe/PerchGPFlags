@@ -1,7 +1,6 @@
 package me.ryanhamshire.GPFlags.flags;
 
 import me.ryanhamshire.GPFlags.Flag;
-import me.ryanhamshire.GPFlags.flags.FlagDefinition;
 import me.ryanhamshire.GPFlags.FlagManager;
 import me.ryanhamshire.GPFlags.FlightManager;
 import me.ryanhamshire.GPFlags.GPFlags;
@@ -15,6 +14,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.node.Node;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -91,15 +91,40 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
     }
 
     public static boolean letPlayerFly(Player player, Location location, Claim claim) {
-        Flag flag = GPFlags.getInstance().getFlagManager().getEffectiveFlag(location, FLAG_NAME, claim);
+        if (location == null) return false;
+
+        Claim checkedClaim = claim;
+        if (checkedClaim == null) checkedClaim = GriefPrevention.instance.dataStore.getClaimAt(location, true, null);
+        if (checkedClaim == null) return false;
+
+        Location flagLocation = clampLocationY(location);
+        Flag flag = GPFlags.getInstance().getFlagManager().getEffectiveFlag(flagLocation, FLAG_NAME, checkedClaim);
+
         return flag != null;
     }
 
     private static boolean inFlyArea(Location loc) {
         if (loc == null) return false;
-        Claim c = GriefPrevention.instance.dataStore.getClaimAt(loc, false, null);
-        if (c == null) return false;
-        return GPFlags.getInstance().getFlagManager().getEffectiveFlag(loc, FLAG_NAME, c) != null;
+
+        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(loc, true, null);
+        if (claim == null) return false;
+
+        Location flagLocation = clampLocationY(loc);
+        return GPFlags.getInstance().getFlagManager().getEffectiveFlag(flagLocation, FLAG_NAME, claim) != null;
+    }
+
+    private static Location clampLocationY(Location loc) {
+        World world = loc.getWorld();
+        if (world == null) return loc;
+
+        int minY = world.getMinHeight();
+        int maxY = world.getMaxHeight() - 1;
+        double y = loc.getY();
+
+        if (y < minY) y = minY;
+        if (y > maxY) y = maxY;
+
+        return new Location(world, loc.getX(), y, loc.getZ(), loc.getYaw(), loc.getPitch());
     }
 
     private void updateAndApply(Player p, Location loc, boolean adjustFlight, boolean forceApply) {
@@ -116,10 +141,12 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
         }
 
         if (adjustFlight && (forceApply || areaChanged)) {
+            Location flightLocation = loc.clone();
+
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!p.isOnline()) return;
-                if (shouldHave) FlightManager.managePlayerFlight(p, null, loc);
-                else FlightManager.manageFlightLater(p, 1, loc);
+                if (shouldHave) FlightManager.managePlayerFlight(p, null, flightLocation);
+                else FlightManager.manageFlightLater(p, 1, flightLocation);
             }, 1L);
         }
     }
@@ -137,9 +164,11 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
 
     private void grantPerms(Player p) {
         UUID uuid = p.getUniqueId();
+
         lp.getUserManager().loadUser(uuid).thenAcceptAsync(u -> {
             Arrays.stream(PERMS).forEach(perm -> u.data().add(Node.builder(perm).value(true).build()));
             lp.getUserManager().saveUser(u);
+
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (p.isOnline()) p.recalculatePermissions();
             });
@@ -148,13 +177,16 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
 
     private void revokePerms(Player p) {
         UUID uuid = p.getUniqueId();
+
         lp.getUserManager().loadUser(uuid).thenAcceptAsync(u -> {
             u.data().clear(n -> {
                 String k = n.getKey().toLowerCase(Locale.ROOT);
                 for (String perm : PERMS) if (k.equals(perm)) return true;
                 return false;
             });
+
             lp.getUserManager().saveUser(u);
+
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (p.isOnline()) p.recalculatePermissions();
             });
@@ -163,6 +195,7 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
 
     private void cleanup(Player p) {
         if (p == null) return;
+
         UUID uuid = p.getUniqueId();
         inAreaState.remove(uuid);
         appliedPermState.remove(uuid);
@@ -173,6 +206,7 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onMove(PlayerMoveEvent e) {
             if (e.getTo() == null) return;
+
             if (e.getFrom().getBlockX() == e.getTo().getBlockX()
                     && e.getFrom().getBlockY() == e.getTo().getBlockY()
                     && e.getFrom().getBlockZ() == e.getTo().getBlockZ()) return;
@@ -182,6 +216,7 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
 
             Boolean prior = inAreaState.get(uuid);
             boolean now = inFlyArea(e.getTo());
+
             if (prior != null && prior == now) return;
 
             updateAndApply(p, e.getTo(), true, false);
@@ -190,6 +225,7 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onTeleport(PlayerTeleportEvent e) {
             if (e.getTo() == null) return;
+
             Player p = e.getPlayer();
             updateAndApply(p, e.getTo(), true, false);
         }

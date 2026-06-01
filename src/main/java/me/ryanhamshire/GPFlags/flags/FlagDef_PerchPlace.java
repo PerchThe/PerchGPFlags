@@ -4,10 +4,9 @@ import me.ryanhamshire.GPFlags.*;
 import me.ryanhamshire.GPFlags.util.MessagingUtil;
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
-
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.block.Action;
@@ -21,6 +20,9 @@ public class FlagDef_PerchPlace extends FlagDefinition {
 
     private static final ConcurrentHashMap<String, Long> cooldowns = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Integer> reminderTasks = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Long> invalidBlockMessageCooldowns = new ConcurrentHashMap<>();
+
+    private static final long INVALID_BLOCK_MESSAGE_COOLDOWN_MS = 5_000L;
 
     private final GPFlags plugin;
 
@@ -52,21 +54,15 @@ public class FlagDef_PerchPlace extends FlagDefinition {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPunch(PlayerInteractEvent e) {
-
-        if (e.getAction() != Action.LEFT_CLICK_BLOCK
-                && e.getAction() != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-
+        if (e.getAction() != Action.LEFT_CLICK_BLOCK && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         if (e.getClickedBlock() == null) return;
 
         Player player = e.getPlayer();
-        Location loc = e.getClickedBlock().getLocation();
 
-        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(loc, false, null);
+        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(e.getClickedBlock().getLocation(), false, null);
         if (claim == null) return;
 
-        Flag flag = this.getFlagInstanceAtLocation(loc, player);
+        Flag flag = this.getFlagInstanceAtLocation(e.getClickedBlock().getLocation(), player);
         if (flag == null) return;
 
         if (player.hasPermission("group.altaccount")) {
@@ -85,18 +81,23 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         Material handType = hand.getType();
 
         if (!isValidBlock(clickedType) || !isValidBlock(handType)) {
-            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Non-full and opaque blocks cannot be used!</gray>");
             e.setCancelled(true);
+            e.setUseItemInHand(Event.Result.DENY);
+            e.setUseInteractedBlock(Event.Result.DENY);
+
+            sendInvalidBlockMessage(player, clickedType, handType);
             return;
         }
 
         if (clickedType == handType) {
-            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>The same block is already placed here.</gray>");
             e.setCancelled(true);
+            e.setUseItemInHand(Event.Result.DENY);
+            e.setUseInteractedBlock(Event.Result.DENY);
+
+            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>The same block is already placed here.</gray>");
             return;
         }
 
-        // cooldown (default 30 min)
         long cooldownMs = parseDurationMillis(flag.getParameters(), 1_800_000L);
         String key = claim.getID() + ":" + player.getUniqueId();
 
@@ -106,12 +107,11 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         if (now - lastUse < cooldownMs) {
             long remaining = cooldownMs - (now - lastUse);
 
-            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You must wait " + formatDuration(remaining) + "!");
-
             e.setCancelled(true);
             e.setUseItemInHand(Event.Result.DENY);
             e.setUseInteractedBlock(Event.Result.DENY);
 
+            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You must wait " + formatDuration(remaining) + "!</gray>");
             return;
         }
 
@@ -123,7 +123,7 @@ public class FlagDef_PerchPlace extends FlagDefinition {
 
         cooldowns.put(key, now);
 
-        send(player, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Block replaced! Cooldown: " + formatDuration(cooldownMs) + ".");
+        send(player, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Block replaced! Cooldown: " + formatDuration(cooldownMs) + ".</gray>");
 
         Integer oldTask = reminderTasks.remove(key);
         if (oldTask != null) {
@@ -133,7 +133,6 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         long delayTicks = Math.max(1L, cooldownMs / 50L);
 
         int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-
             reminderTasks.remove(key);
             cooldowns.remove(key);
 
@@ -141,7 +140,7 @@ public class FlagDef_PerchPlace extends FlagDefinition {
             if (online == null || !online.isOnline()) return;
 
             send(online, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You can place a block again!</gray>");
-
+            online.playSound(online.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.25f, 1.6f);
         }, delayTicks).getTaskId();
 
         reminderTasks.put(key, taskId);
@@ -153,42 +152,44 @@ public class FlagDef_PerchPlace extends FlagDefinition {
     );
 
     private static boolean isValidBlock(Material mat) {
-        return EXTRA_ALLOWED.contains(mat)
-                || (mat.isBlock() && mat.isOccluding());
+        return EXTRA_ALLOWED.contains(mat) || (mat.isBlock() && mat.isOccluding());
+    }
+
+    private static void sendInvalidBlockMessage(Player player, Material clickedType, Material handType) {
+        String key = invalidMaterialMessageKey(player, clickedType, handType);
+        long now = System.currentTimeMillis();
+        long last = invalidBlockMessageCooldowns.getOrDefault(key, 0L);
+
+        if (now - last < INVALID_BLOCK_MESSAGE_COOLDOWN_MS) return;
+
+        invalidBlockMessageCooldowns.put(key, now);
+        send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Non-full and opaque blocks cannot be used!</gray>");
+    }
+
+    private static String invalidMaterialMessageKey(Player player, Material clickedType, Material handType) {
+        Material material = !isValidBlock(clickedType) ? clickedType : handType;
+        return player.getUniqueId() + ":" + material.name();
     }
 
     private static long parseDurationMillis(String param, long def) {
-
         if (param == null || param.isEmpty()) return def;
 
         try {
-
             String s = param.toLowerCase().replace(" ", "");
 
-            if (s.endsWith("ms"))
-                return Long.parseLong(s.replace("ms", ""));
-
-            if (s.endsWith("s"))
-                return Long.parseLong(s.replace("s", "")) * 1000L;
-
-            if (s.endsWith("m"))
-                return Long.parseLong(s.replace("m", "")) * 60_000L;
-
-            if (s.endsWith("h"))
-                return Long.parseLong(s.replace("h", "")) * 3_600_000L;
-
-            if (s.endsWith("d"))
-                return Long.parseLong(s.replace("d", "")) * 86_400_000L;
+            if (s.endsWith("ms")) return Long.parseLong(s.replace("ms", ""));
+            if (s.endsWith("s")) return Long.parseLong(s.replace("s", "")) * 1000L;
+            if (s.endsWith("m")) return Long.parseLong(s.replace("m", "")) * 60_000L;
+            if (s.endsWith("h")) return Long.parseLong(s.replace("h", "")) * 3_600_000L;
+            if (s.endsWith("d")) return Long.parseLong(s.replace("d", "")) * 86_400_000L;
 
             return Long.parseLong(s);
-
         } catch (Exception e) {
             return def;
         }
     }
 
     private static String formatDuration(long ms) {
-
         if (ms <= 0) return "0 seconds";
 
         long totalSec = (long) Math.ceil(ms / 1000.0);
@@ -204,21 +205,10 @@ public class FlagDef_PerchPlace extends FlagDefinition {
 
         List<String> parts = new ArrayList<>();
 
-        if (days > 0) {
-            parts.add(days + (days == 1 ? " day" : " days"));
-        }
-
-        if (hours > 0) {
-            parts.add(hours + (hours == 1 ? " hour" : " hours"));
-        }
-
-        if (minutes > 0) {
-            parts.add(minutes + (minutes == 1 ? " minute" : " minutes"));
-        }
-
-        if (seconds > 0 || parts.isEmpty()) {
-            parts.add(seconds + (seconds == 1 ? " second" : " seconds"));
-        }
+        if (days > 0) parts.add(days + (days == 1 ? " day" : " days"));
+        if (hours > 0) parts.add(hours + (hours == 1 ? " hour" : " hours"));
+        if (minutes > 0) parts.add(minutes + (minutes == 1 ? " minute" : " minutes"));
+        if (seconds > 0 || parts.isEmpty()) parts.add(seconds + (seconds == 1 ? " second" : " seconds"));
 
         return String.join(", ", parts);
     }
