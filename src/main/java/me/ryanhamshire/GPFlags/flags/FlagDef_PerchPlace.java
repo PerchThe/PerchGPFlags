@@ -69,6 +69,15 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         Flag flag = this.getFlagInstanceAtLocation(loc, player);
         if (flag == null) return;
 
+        if (player.hasPermission("group.altaccount")) {
+            e.setCancelled(true);
+            e.setUseItemInHand(Event.Result.DENY);
+            e.setUseInteractedBlock(Event.Result.DENY);
+
+            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Alts cannot participate in the event!</gray>");
+            return;
+        }
+
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand == null || hand.getType() == Material.AIR) return;
 
@@ -76,13 +85,13 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         Material handType = hand.getType();
 
         if (!isValidBlock(clickedType) || !isValidBlock(handType)) {
-            send(player, TextMode.Warn + "<gold>PerchPlace</gold> <dark_gray>»</dark_gray> <gray>This block cannot be used.</gray>");
+            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Non-full and opaque blocks cannot be used!</gray>");
             e.setCancelled(true);
             return;
         }
 
         if (clickedType == handType) {
-            send(player, TextMode.Warn + "<gold>PerchPlace</gold> <dark_gray>»</dark_gray> <gray>The same block is already placed here.</gray>");
+            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>The same block is already placed here.</gray>");
             e.setCancelled(true);
             return;
         }
@@ -97,7 +106,7 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         if (now - lastUse < cooldownMs) {
             long remaining = cooldownMs - (now - lastUse);
 
-            send(player, TextMode.Warn + "<gold>PerchPlace</gold> <dark_gray>»</dark_gray> <gray>You must wait " + formatDuration(remaining) + "!");
+            send(player, TextMode.Warn + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You must wait " + formatDuration(remaining) + "!");
 
             e.setCancelled(true);
             e.setUseItemInHand(Event.Result.DENY);
@@ -114,7 +123,7 @@ public class FlagDef_PerchPlace extends FlagDefinition {
 
         cooldowns.put(key, now);
 
-        send(player, TextMode.Success + "<gold>PerchPlace</gold> <dark_gray>»</dark_gray> <gray>Block replaced! Cooldown: " + formatDuration(cooldownMs) + ".");
+        send(player, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Block replaced! Cooldown: " + formatDuration(cooldownMs) + ".");
 
         Integer oldTask = reminderTasks.remove(key);
         if (oldTask != null) {
@@ -131,15 +140,21 @@ public class FlagDef_PerchPlace extends FlagDefinition {
             Player online = Bukkit.getPlayer(player.getUniqueId());
             if (online == null || !online.isOnline()) return;
 
-            send(online, TextMode.Success + "<gold>PerchPlace</gold> <dark_gray>»</dark_gray> <gray>You can place a block again!</gray>");
+            send(online, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You can place a block again!</gray>");
 
         }, delayTicks).getTaskId();
 
         reminderTasks.put(key, taskId);
     }
 
+    private static final Set<Material> EXTRA_ALLOWED = EnumSet.of(
+            Material.REDSTONE_BLOCK,
+            Material.GLOWSTONE
+    );
+
     private static boolean isValidBlock(Material mat) {
-        return mat.isBlock() && mat.isOccluding();
+        return EXTRA_ALLOWED.contains(mat)
+                || (mat.isBlock() && mat.isOccluding());
     }
 
     private static long parseDurationMillis(String param, long def) {
