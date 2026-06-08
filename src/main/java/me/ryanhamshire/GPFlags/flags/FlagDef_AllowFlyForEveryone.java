@@ -47,6 +47,8 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
 
     private final ConcurrentHashMap<UUID, Boolean> inAreaState = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Boolean> appliedPermState = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Boolean> priorAllowFlight = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Boolean> priorIsFlying = new ConcurrentHashMap<>();
 
     public FlagDef_AllowFlyForEveryone(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
@@ -136,6 +138,11 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
         Boolean oldInArea = inAreaState.put(uuid, shouldHave);
         boolean areaChanged = oldInArea == null || oldInArea != shouldHave;
 
+        if (areaChanged && shouldHave) {
+            priorAllowFlight.put(uuid, p.getAllowFlight());
+            priorIsFlying.put(uuid, p.isFlying());
+        }
+
         if (forceApply || areaChanged) {
             applyPermStateIfNeeded(p, shouldHave, forceApply);
         }
@@ -145,8 +152,25 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
 
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!p.isOnline()) return;
-                if (shouldHave) FlightManager.managePlayerFlight(p, null, flightLocation);
-                else FlightManager.manageFlightLater(p, 1, flightLocation);
+
+                if (shouldHave) {
+                    FlightManager.managePlayerFlight(p, null, flightLocation);
+                } else {
+                    boolean hadAllowFlight = priorAllowFlight.getOrDefault(uuid, false);
+                    boolean wasFlying = priorIsFlying.getOrDefault(uuid, false);
+
+                    priorAllowFlight.remove(uuid);
+                    priorIsFlying.remove(uuid);
+
+                    if (hadAllowFlight) {
+                        p.setAllowFlight(true);
+                        if (wasFlying) {
+                            p.setFlying(true);
+                        }
+                    } else {
+                        FlightManager.manageFlightLater(p, 1, flightLocation);
+                    }
+                }
             }, 1L);
         }
     }
@@ -199,6 +223,8 @@ public class FlagDef_AllowFlyForEveryone extends FlagDefinition {
         UUID uuid = p.getUniqueId();
         inAreaState.remove(uuid);
         appliedPermState.remove(uuid);
+        priorAllowFlight.remove(uuid);
+        priorIsFlying.remove(uuid);
     }
 
     private final class ClaimFlyListener implements Listener {

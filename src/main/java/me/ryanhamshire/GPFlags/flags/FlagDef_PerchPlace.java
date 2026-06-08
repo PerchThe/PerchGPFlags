@@ -18,11 +18,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class FlagDef_PerchPlace extends FlagDefinition {
 
+    private static final long DEFAULT_COOLDOWN_MS = 1_800_000L;
+    private static final long INVALID_BLOCK_MESSAGE_COOLDOWN_MS = 5_000L;
+
     private static final ConcurrentHashMap<String, Long> cooldowns = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Integer> reminderTasks = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Long> invalidBlockMessageCooldowns = new ConcurrentHashMap<>();
-
-    private static final long INVALID_BLOCK_MESSAGE_COOLDOWN_MS = 5_000L;
 
     private final GPFlags plugin;
 
@@ -50,6 +51,16 @@ public class FlagDef_PerchPlace extends FlagDefinition {
     @Override
     public List<FlagType> getFlagType() {
         return Arrays.asList(FlagType.CLAIM, FlagType.DEFAULT);
+    }
+
+    @Override
+    public void onFlagSet(Claim claim, String param) {
+        refreshCooldownsForClaim(claim, parseDurationMillis(param, DEFAULT_COOLDOWN_MS));
+    }
+
+    @Override
+    public void onFlagUnset(Claim claim) {
+        clearCooldownsForClaim(claim);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -98,8 +109,8 @@ public class FlagDef_PerchPlace extends FlagDefinition {
             return;
         }
 
-        long cooldownMs = parseDurationMillis(flag.getParameters(), 1_800_000L);
-        String key = claim.getID() + ":" + player.getUniqueId();
+        long cooldownMs = parseDurationMillis(flag.getParameters(), DEFAULT_COOLDOWN_MS);
+        String key = cooldownKey(claim, player.getUniqueId());
 
         long now = System.currentTimeMillis();
         long lastUse = cooldowns.getOrDefault(key, 0L);
@@ -125,18 +136,64 @@ public class FlagDef_PerchPlace extends FlagDefinition {
 
         send(player, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>Block replaced! Cooldown: " + formatDuration(cooldownMs) + ".</gray>");
 
-        Integer oldTask = reminderTasks.remove(key);
-        if (oldTask != null) {
-            Bukkit.getScheduler().cancelTask(oldTask);
-        }
+        scheduleReminder(key, player.getUniqueId(), cooldownMs);
+    }
 
-        long delayTicks = Math.max(1L, cooldownMs / 50L);
+    private void refreshCooldownsForClaim(Claim claim, long newCooldownMs) {
+        if (claim == null) return;
+
+        String prefix = claim.getID() + ":";
+        long now = System.currentTimeMillis();
+
+        for (Map.Entry<String, Long> entry : cooldowns.entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith(prefix)) continue;
+
+            UUID uuid = uuidFromCooldownKey(key);
+            if (uuid == null) continue;
+
+            long elapsed = now - entry.getValue();
+            long remaining = newCooldownMs - elapsed;
+
+            cancelReminder(key);
+
+            if (remaining <= 0L) {
+                cooldowns.remove(key);
+                Player online = Bukkit.getPlayer(uuid);
+
+                if (online != null && online.isOnline()) {
+                    send(online, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You can place a block again!</gray>");
+                    online.playSound(online.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.25f, 1.6f);
+                }
+            } else {
+                scheduleReminder(key, uuid, remaining);
+            }
+        }
+    }
+
+    private void clearCooldownsForClaim(Claim claim) {
+        if (claim == null) return;
+
+        String prefix = claim.getID() + ":";
+
+        for (String key : new ArrayList<>(cooldowns.keySet())) {
+            if (!key.startsWith(prefix)) continue;
+
+            cooldowns.remove(key);
+            cancelReminder(key);
+        }
+    }
+
+    private void scheduleReminder(String key, UUID uuid, long delayMs) {
+        cancelReminder(key);
+
+        long delayTicks = Math.max(1L, delayMs / 50L);
 
         int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             reminderTasks.remove(key);
             cooldowns.remove(key);
 
-            Player online = Bukkit.getPlayer(player.getUniqueId());
+            Player online = Bukkit.getPlayer(uuid);
             if (online == null || !online.isOnline()) return;
 
             send(online, TextMode.Success + "<#48ab76>r/Evergreen <dark_gray>»</dark_gray> <gray>You can place a block again!</gray>");
@@ -144,6 +201,28 @@ public class FlagDef_PerchPlace extends FlagDefinition {
         }, delayTicks).getTaskId();
 
         reminderTasks.put(key, taskId);
+    }
+
+    private void cancelReminder(String key) {
+        Integer oldTask = reminderTasks.remove(key);
+        if (oldTask != null) {
+            Bukkit.getScheduler().cancelTask(oldTask);
+        }
+    }
+
+    private static String cooldownKey(Claim claim, UUID uuid) {
+        return claim.getID() + ":" + uuid;
+    }
+
+    private static UUID uuidFromCooldownKey(String key) {
+        int split = key.indexOf(':');
+        if (split < 0 || split + 1 >= key.length()) return null;
+
+        try {
+            return UUID.fromString(key.substring(split + 1));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private static final Set<Material> EXTRA_ALLOWED = EnumSet.of(
