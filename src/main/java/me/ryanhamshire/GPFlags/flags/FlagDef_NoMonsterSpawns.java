@@ -54,8 +54,9 @@ public class FlagDef_NoMonsterSpawns extends FlagDefinition {
         boolean isBat = type == EntityType.BAT;
         boolean isMonster = Util.isMonster(entity);
         boolean isAnimal = entity instanceof Animals;
+        boolean isWanderingTrader = type == EntityType.WANDERING_TRADER;
 
-        if (!isBat && !(isMonster || isAnimal)) return;
+        if (!isBat && !(isMonster || isAnimal || isWanderingTrader)) return;
         if (reason == SpawnReason.SLIME_SPLIT) return;
 
 

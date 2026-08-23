@@ -324,5 +324,11 @@ public enum Messages {
     EnablePerchPlace,
     DisablePerchPlace,
 
+    EnableNoThru,
+    DisableNoThru,
+
+    EnableNoBlockUpdate,
+    DisableNoBlockUpdate,
+
     Prefix
 }

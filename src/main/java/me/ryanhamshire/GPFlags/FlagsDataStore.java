@@ -435,6 +435,10 @@ public class FlagsDataStore {
         this.addDefault(defaults, Messages.DisabledNoVehicleDamage, "Vehicles will now continue to take damage caused by explosions in this claim.", null);
         this.addDefault(defaults, Messages.EnablePerchPlace, "Perch r/place has been enabled in this claim.", null);
         this.addDefault(defaults, Messages.DisablePerchPlace, "Perch r/place has been disabled in this claim.", null);
+        this.addDefault(defaults, Messages.EnableNoThru, "Players can no longer use /thru and /jump in this claim.", null);
+        this.addDefault(defaults, Messages.DisableNoThru, "Players can now use /thru and /jump in this claim.", null);
+        this.addDefault(defaults, Messages.EnableNoBlockUpdate, "Block updates are now suppressed in this claim.", null);
+        this.addDefault(defaults, Messages.DisableNoBlockUpdate, "Block updates are no longer suppressed in this claim.", null);
 
         //load the config file
         File file = new File(messagesFilePath);
