@@ -19,12 +19,16 @@ import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
 
     private final GPFlags gpFlagsPlugin;
     private final NamespacedKey pdcKey;
+    private final Set<UUID> restoringPlayers = new HashSet<>();
 
     public FlagDef_NoPotionEffects(FlagManager manager, GPFlags plugin) {
         super(manager, plugin);
@@ -82,13 +86,36 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
         pdc.set(this.pdcKey, PersistentDataType.STRING, sb.toString());
     }
 
+    private boolean blocksEffect(String parameters, PotionEffectType effectType) {
+        if (parameters.equalsIgnoreCase("all")) {
+            return true;
+        }
+
+        for (String parameter : parameters.split("\\s+")) {
+            if (effectType.getName().equalsIgnoreCase(parameter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void restorePausedEffects(Player player, Map<String, PotionEffect> pausedEffects) {
+        UUID playerId = player.getUniqueId();
+        restoringPlayers.add(playerId);
+        try {
+            for (PotionEffect effect : pausedEffects.values()) {
+                player.addPotionEffect(effect);
+            }
+        } finally {
+            restoringPlayers.remove(playerId);
+        }
+    }
+
     // --- Core Logic ---
 
     @Override
     public void onFlagSet(Claim claim, String string) {
         World world = claim.getLesserBoundaryCorner().getWorld();
-        boolean blockAll = string.equalsIgnoreCase("all");
-        String[] paramArray = string.split(" ");
 
         for (Player player : world.getPlayers()) {
             if (claim.contains(Util.getInBoundsLocation(player), false, false)) {
@@ -99,18 +126,8 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
 
                 for (PotionEffect potionEffect : player.getActivePotionEffects()) {
                     PotionEffectType effectType = potionEffect.getType();
-                    boolean blockThis = blockAll;
 
-                    if (!blockThis) {
-                        for (String s : paramArray) {
-                            if (effectType.getName().equalsIgnoreCase(s)) {
-                                blockThis = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (blockThis) {
+                    if (blocksEffect(string, effectType)) {
                         pausedEffects.put(effectType.getName(), potionEffect);
                         player.removePotionEffect(effectType);
                         pdcChanged = true;
@@ -125,39 +142,22 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
     }
 
     @Override
-    public void onChangeClaim(Player player, Location lastLocation, Location to, Claim claimFrom, Claim claimTo, @Nullable Flag flagFrom, @Nullable Flag flagTo) {
+    public void onChangeClaim(Player player, Location lastLocation, Location to, Claim claimFrom, Claim claimTo,
+                              @Nullable Flag flagFrom, @Nullable Flag flagTo) {
         Map<String, PotionEffect> pausedEffects = getPausedEffects(player);
         boolean pdcChanged = false;
 
-        // 1. Always attempt to restore effects first.
-        // This ensures if they leave a restricted claim, they get everything back.
         if (!pausedEffects.isEmpty()) {
-            for (PotionEffect effect : pausedEffects.values()) {
-                player.addPotionEffect(effect);
-            }
+            restorePausedEffects(player, pausedEffects);
             pausedEffects.clear();
             pdcChanged = true;
         }
 
-        // 2. Re-evaluate against the new claim's rules.
         if (flagTo != null && !player.hasPermission("gpflags.bypass.nopotioneffects")) {
-            boolean blockAll = flagTo.parameters.equalsIgnoreCase("all");
-            String[] paramArray = flagTo.getParametersArray();
-
             for (PotionEffect potionEffect : player.getActivePotionEffects()) {
                 PotionEffectType effectType = potionEffect.getType();
-                boolean blockThis = blockAll;
 
-                if (!blockThis) {
-                    for (String string : paramArray) {
-                        if (effectType.getName().equalsIgnoreCase(string)) {
-                            blockThis = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (blockThis) {
+                if (blocksEffect(flagTo.parameters, effectType)) {
                     pausedEffects.put(effectType.getName(), potionEffect);
                     player.removePotionEffect(effectType);
                     pdcChanged = true;
@@ -165,7 +165,6 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
             }
         }
 
-        // 3. Save state
         if (pdcChanged) {
             savePausedEffects(player, pausedEffects);
         }
@@ -177,8 +176,11 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
         if (!(entity instanceof Player)) return;
         Player player = (Player) entity;
 
-        // We only care about effects being ADDED or CHANGED.
-        if (event.getAction() != EntityPotionEffectEvent.Action.ADDED && event.getAction() != EntityPotionEffectEvent.Action.CHANGED) {
+        // ignore effects added while leaving/changing claims.
+        if (restoringPlayers.contains(player.getUniqueId())) return;
+
+        if (event.getAction() != EntityPotionEffectEvent.Action.ADDED
+                && event.getAction() != EntityPotionEffectEvent.Action.CHANGED) {
             return;
         }
 
@@ -190,40 +192,30 @@ public class FlagDef_NoPotionEffects extends PlayerMovementFlagDefinition {
         if (potionEffect == null) return;
 
         PotionEffectType effectType = potionEffect.getType();
-        boolean blockThis = flag.parameters.equalsIgnoreCase("all");
+        if (!blocksEffect(flag.parameters, effectType)) return;
 
-        if (!blockThis) {
-            for (String string : flag.getParametersArray()) {
-                if (effectType.getName().equalsIgnoreCase(string)) {
-                    blockThis = true;
-                    break;
-                }
+        Map<String, PotionEffect> paused = getPausedEffects(player);
+        paused.put(effectType.getName(), potionEffect);
+        savePausedEffects(player, paused);
+
+        event.setCancelled(false);
+
+        this.gpFlagsPlugin.getServer().getScheduler().runTask(this.gpFlagsPlugin, () -> {
+            if (!player.isOnline()) return;
+            if (player.hasPermission("gpflags.bypass.nopotioneffects")) return;
+
+            Flag currentFlag = this.getFlagInstanceAtLocation(player.getLocation(), player);
+            if (currentFlag != null && blocksEffect(currentFlag.parameters, effectType)) {
+                player.removePotionEffect(effectType);
             }
-        }
-
-        if (blockThis) {
-            // Save it to PDC so it gets properly restored upon exiting
-            Map<String, PotionEffect> paused = getPausedEffects(player);
-            paused.put(effectType.getName(), potionEffect);
-            savePausedEffects(player, paused);
-
-            // FIX FOR THE DESYNC:
-            // Allow the event to pass so the client registers the item consumption.
-            event.setCancelled(false);
-
-            // Strip it 1 tick later to sync the client visually and mechanically.
-            this.gpFlagsPlugin.getServer().getScheduler().runTask(this.gpFlagsPlugin, () -> {
-                if (player.isOnline()) {
-                    player.removePotionEffect(effectType);
-                }
-            });
-        }
+        });
     }
 
-    // Prevents exploits: clears the paused effects cache if a player dies in the claim.
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
+        restoringPlayers.remove(player.getUniqueId());
+
         Map<String, PotionEffect> paused = getPausedEffects(player);
         if (!paused.isEmpty()) {
             paused.clear();
