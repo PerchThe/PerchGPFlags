@@ -1,6 +1,9 @@
 package me.ryanhamshire.GPFlags.flags;
 
 import me.ryanhamshire.GPFlags.*;
+import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.GriefPrevention;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,12 +18,20 @@ public class FlagDef_NoSetBedSpawn extends FlagDefinition {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerSpawnChange(PlayerSetSpawnEvent event) {
-        // Only handle bed respawn point changes
         if (event.getCause() != PlayerSetSpawnEvent.Cause.BED) return;
 
         Player player = event.getPlayer();
+        Location location = event.getLocation();
 
-        Flag flag = this.getFlagInstanceAtLocation(event.getLocation(), player);
+        if (location == null) return;
+
+        Claim claim = GriefPrevention.instance.dataStore.getClaimAt(location, false, null);
+
+        if (claim != null && player.getUniqueId().equals(claim.getOwnerID())) {
+            return;
+        }
+
+        Flag flag = this.getFlagInstanceAtLocation(location, player);
         if (flag == null) return;
 
         MessagingUtil.sendMessage(player, TextMode.Err, Messages.SetBedSpawnDisabled);
